@@ -51,6 +51,7 @@ KEY_PAUSE  = 17
 KEY_MUTE   = 18
 KEY_ELSE   = 19
 KEY_NONE   = 20
+KEY_S      = 21
 
 -- Key mapping: key code -> Love2D key name
 keyMap = {

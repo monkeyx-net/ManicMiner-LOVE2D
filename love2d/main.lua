@@ -126,6 +126,7 @@ function love.keypressed(key, scancode, isrepeat)
     elseif key == "7" then mapped = KEY_7
     elseif key == "8" then mapped = KEY_8
     elseif key == "9" then mapped = KEY_9
+    elseif key == "s" then mapped = KEY_S
     else
         mapped = KEY_ELSE
     end
@@ -146,7 +147,7 @@ end
 -- Gamepad button -> game key event mapping
 local gamepadButtonMap = {
     a     = KEY_JUMP,
-    b     = KEY_JUMP,
+    b     = KEY_S,
     x     = KEY_PAUSE,
     y     = KEY_MUTE,
     start = KEY_ENTER,

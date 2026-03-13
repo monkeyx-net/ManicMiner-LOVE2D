@@ -12,6 +12,36 @@ local gameScore         = 0
 local gameHiScore       = 0
 local gameExtraLifeCount = 0
 
+-- Per-level high scores (global, 0-indexed, 20 levels)
+levelHiScores = {}
+for _i = 0, 19 do levelHiScores[_i] = 0 end
+
+local SCORES_FILE = "levelscores.dat"
+
+function Scores_Save()
+    local lines = {}
+    for i = 0, 19 do lines[i + 1] = tostring(levelHiScores[i]) end
+    love.filesystem.write(SCORES_FILE, table.concat(lines, "\n"))
+end
+
+function Scores_Load()
+    local data = love.filesystem.read(SCORES_FILE)
+    if not data then return end
+    local i = 0
+    for line in data:gmatch("[^\n]+") do
+        local v = tonumber(line)
+        if v and i <= 19 then levelHiScores[i] = v end
+        i = i + 1
+    end
+end
+
+function Scores_UpdateLevel(level)
+    if gameScore > levelHiScores[level] then
+        levelHiScores[level] = gameScore
+        Scores_Save()
+    end
+end
+
 local gameFrame = 0
 local gameTimer = {}
 
@@ -291,3 +321,5 @@ function Game_Action()
     Drawer    = DoGameDrawer
     Action    = DoNothing
 end
+
+Scores_Load()

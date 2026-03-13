@@ -41,6 +41,8 @@ local function DoTransTicker()
                 if gameAirOld > 0 then
                     break  -- still counting air; draw current state and wait
                 end
+
+                Scores_UpdateLevel(gameLevel)
             end
 
             if gameLevel == TWENTY then

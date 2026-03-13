@@ -185,6 +185,8 @@ local function DoTitleResponder()
 
         gameDemo = 0
         Action = DoStartGame
+    elseif gameInput == KEY_S then
+        Action = HiScores_Action
     elseif gameInput == KEY_ESCAPE then
         DoQuit()
     end
@@ -195,4 +197,42 @@ function Title_Action()
     Ticker    = DoTitleInit
     Drawer    = Audio_Drawer
     Action    = DoTitleAction
+end
+
+-- ---------------------------------------------------------------------------
+-- High scores screen
+
+local function DoHiScoresInit()
+    Video_PixelFill(0, WIDTH * HEIGHT, 0x0)
+
+    Video_WriteLarge(0, 6 * 8, "\x01\x00\x02\x06HIGH SCORES")
+
+    local inks = {0x7, 0x5}
+    for i = 0, 19 do
+        local row = (16 + i * 8) * WIDTH
+        local name = levelData[i].name
+        if #name > 20 then name = name:sub(1, 20) end
+        local paddedName = name .. string.rep(" ", 20 - #name)
+        local score = levelHiScores[i]
+        local ink = inks[(i % 2) + 1]
+        local line = "\x01\x00\x02" .. string.char(ink) ..
+                     string.format("%2d ", i + 1) .. paddedName ..
+                     string.format(" %6d", score)
+        Video_Write(row, line)
+    end
+
+    Video_Write(184 * WIDTH, "\x01\x00\x02\x02PRESS ANY KEY TO RETURN")
+
+    Ticker = DoNothing
+end
+
+local function DoHiScoresResponder()
+    Action = Title_Action
+end
+
+function HiScores_Action()
+    Responder = DoHiScoresResponder
+    Ticker    = DoHiScoresInit
+    Drawer    = DoNothing
+    Action    = DoNothing
 end

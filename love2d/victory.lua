@@ -4,9 +4,11 @@ local victoryMinerSprite = {24,248,496,208,248,240,96,240,504,1020,2046,1782,248
 
 local victoryTimer = 0
 
+local VICTORY_STEP = 3  -- 450 ticks → 150 game ticks (~2.5s instead of 7.5s)
+
 local function DoVictoryTicker()
-    victoryTimer = victoryTimer - 1
-    if victoryTimer == 0 then
+    victoryTimer = victoryTimer - VICTORY_STEP
+    if victoryTimer <= 0 then
         Action = Trans_Action
     end
 end

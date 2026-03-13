@@ -181,6 +181,20 @@ function Video_LevelInkFill(ink)
     imageDirty = true
 end
 
+-- Fill every pixel in the game area with one colour unconditionally.
+-- No videoPixel read, no branch per pixel — fastest possible clear.
+-- Use this when old sprite ink residue (B_LEVEL=1) must also be wiped.
+function Video_GameAreaFill(color)
+    local c = palette[color + 1]
+    local r, g, b = c[1], c[2], c[3]
+    for y = 0, 127 do
+        for x = 0, WIDTH - 1 do
+            imgData:setPixel(x, y, r, g, b, 1)
+        end
+    end
+    imageDirty = true
+end
+
 -- Fill paper and ink pixels in a single pass (used by trans.lua).
 -- Halves pixel iterations vs calling Paper + Ink fills separately.
 function Video_LevelFill(paper, ink)

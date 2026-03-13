@@ -214,11 +214,14 @@ local function channelOutput(ch)
 end
 
 -- Love2D QueueableSource for audio output
-local audioSource = nil
-local audioBufSize = 512  -- samples per buffer (~23ms at 22050 Hz)
+local audioSource  = nil
+local audioBufSize = 512    -- samples per buffer (~23ms at 22050 Hz)
+local audioBuf     = nil    -- pre-allocated; reused every fill to avoid GC churn
 
 function Audio_Init()
-    audioSource = love.audio.newQueueableSource(SAMPLERATE, 16, 2, 4)
+    -- 8 buffer slots × 46ms = ~370ms headroom; tolerates ~2 FPS before underrun
+    audioSource = love.audio.newQueueableSource(SAMPLERATE, 16, 2, 8)
+    audioBuf    = love.sound.newSoundData(audioBufSize, SAMPLERATE, 16, 2)
     audioSource:play()
 end
 
@@ -236,7 +239,7 @@ function Audio_Update(dt)
     -- Each buffer covers ~1/8 second
     for b = 1, buffered do
         -- Tick music/sfx events once per ~audioSampleCounter cycle
-        local buf = love.sound.newSoundData(audioBufSize, SAMPLERATE, 16, 2)
+        -- Reuse pre-allocated buffer (queue() copies the data, so reuse is safe)
         for i = 0, audioBufSize - 1 do
             audioSampleCounter = audioSampleCounter + 1
             if audioSampleCounter >= samplesPerTick then
@@ -254,10 +257,10 @@ function Audio_Update(dt)
             end
             L = math.max(-32768, math.min(32767, L))
             R = math.max(-32768, math.min(32767, R))
-            buf:setSample(i * 2,     L / 32768)
-            buf:setSample(i * 2 + 1, R / 32768)
+            audioBuf:setSample(i * 2,     L / 32768)
+            audioBuf:setSample(i * 2 + 1, R / 32768)
         end
-        audioSource:queue(buf)
+        audioSource:queue(audioBuf)
     end
     if not audioSource:isPlaying() then
         audioSource:play()
@@ -336,7 +339,7 @@ function Audio_Sfx(sfx_id)
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
             sfx.pitchIdx = 1
             sfx.data = 50
-            channelStereo(sfx.channel, 256, -256)
+            channelStereo(sfx.channel, 256, 256)  -- was -256: inverted R = silence on mono
             sfx.state = "victory"
         elseif sfx_id == SFX_DIE then
             sfx.length = 1
@@ -348,7 +351,7 @@ function Audio_Sfx(sfx_id)
             sfx.length = 2
             sfx.pitch = sfxPitch[SFX_GAMEOVER + 1]
             sfx.pitchIdx = 1
-            channelStereo(sfx.channel, 256, -256)
+            channelStereo(sfx.channel, 256, 256)  -- was -256: inverted R = silence on mono
             sfx.state = "play"
         end
         sfx.channel.active = true

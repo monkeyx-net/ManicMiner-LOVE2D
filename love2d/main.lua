@@ -55,6 +55,8 @@ local frameStep  = tickStep        -- target frame interval (matches tick rate)
 local lastFrame  = 0
 
 function love.update(dt)
+    frameCount = frameCount + 1   -- lets drawers detect new frames
+
     -- Update audio every frame regardless of tick rate
     Audio_Update(dt)
 

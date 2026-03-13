@@ -149,6 +149,10 @@ function DoQuit()
     love.event.quit()
 end
 
+-- Frame counter incremented once per love.update; used by drawers to
+-- skip redundant work when multiple ticks fire in the same render frame.
+frameCount = 0
+
 -- gameInput: set by keypressed, consumed by Responder
 gameInput = KEY_NONE
 

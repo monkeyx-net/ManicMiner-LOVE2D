@@ -4,8 +4,7 @@ local plinthSprite = {65535,29262,35409,43605,19026,4680,8772,10836,10836,10836,
 local bootSprite   = {10944,13632,16320,2304,2304,8064,4224,4224,4480,8768,8376,22820,17474,17410,17410,65535}
 local goMinerSprite = {96,992,1984,832,992,960,384,960,2016,2016,3952,4016,960,1888,1760,1904}
 
-local bootTicks   = 0
-local goLastFrame = -1
+local bootTicks = 0
 
 -- Text arrays (ink byte at positions 4, 8, 12, 16 for each)
 local textGame = {"\x01\x00\x02", 0x0, "G ", "\x02", 0x0, "a ", "\x02", 0x0, "m ", "\x02", 0x0, "e"}
@@ -27,22 +26,8 @@ end
 
 local function DoGameoverDrawer()
     if bootTicks <= 96 then
-        -- Gate to once per render frame: fill + 3 sprite redraws is expensive
-        if frameCount ~= goLastFrame then
-            goLastFrame = frameCount
-            local paper = rshift(band(bootTicks, 12), 2)
-
-            -- Unconditional fill clears everything including old boot-sprite
-            -- ink residue (Video_LevelPaperFill skips B_LEVEL=1, leaving ghosts)
-            Video_GameAreaFill(paper)
-
-            -- Redraw the two static sprites that init placed (wiped by the fill)
-            Video_Sprite(112 * WIDTH + 15 * 8, plinthSprite,  paper, 0x7)
-            Video_Sprite(96  * WIDTH + 15 * 8, goMinerSprite, paper, 0x7)
-
-            -- Draw boot sprite at its current position
-            Video_Sprite(band(bootTicks, 126) * WIDTH + 15 * 8, bootSprite, paper, 0x7)
-        end
+        Video_Sprite(band(bootTicks, 126) * WIDTH + 15 * 8, bootSprite, 0x0, 0x7)
+        Video_LevelPaperFill(rshift(band(bootTicks, 12), 2))
     end
 
     if bootTicks < 96 then return end
@@ -61,13 +46,10 @@ local function DoGameoverDrawer()
     Video_WriteLarge(48 * WIDTH, 18 * 8, overStr)
 end
 
-local GAMEOVER_STEP = 2  -- logical ticks per game tick (halves heavy paper fills)
-
 local function DoGameoverTicker()
-    bootTicks = bootTicks + GAMEOVER_STEP
+    bootTicks = bootTicks + 1
 
-    if bootTicks >= 256 then
-        bootTicks = 256
+    if bootTicks == 256 then
         Action = Title_Action
     end
 end

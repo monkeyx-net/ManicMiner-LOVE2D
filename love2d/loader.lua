@@ -49,7 +49,7 @@ end
 local function DoLoaderInit()
     Video_PixelFill(0, WIDTH * HEIGHT, 0)
     Video_CopyColour(loaderColour[1], 256, 256)
-    Video_Write(184 * WIDTH, "\x02\x07" .. "fawtytoo")
+    Video_Write(184 * WIDTH, "\x02\x07" .. "monkeyx")
     -- Right-justify build string
     local buildWidth = #BUILD * 8  -- approximate
     Video_Write(184 * WIDTH + WIDTH - buildWidth, "\x02\x01" .. BUILD)

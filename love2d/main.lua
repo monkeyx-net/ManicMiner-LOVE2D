@@ -49,15 +49,18 @@ function love.load()
     Action = Loader_Action
 end
 
-local tickAccum = 0
-local tickStep  = 1 / TICKRATE   -- seconds per game tick
+local tickAccum  = 0
+local tickStep   = 1 / TICKRATE   -- seconds per game tick
+local frameStep  = tickStep        -- target frame interval (matches tick rate)
+local lastFrame  = 0
 
 function love.update(dt)
     -- Update audio every frame regardless of tick rate
     Audio_Update(dt)
 
     -- Accumulate time and run game logic at fixed 60 Hz
-    tickAccum = tickAccum + dt
+    -- Cap debt to 4 ticks max to prevent spiral-of-death on slow devices
+    tickAccum = math.min(tickAccum + dt, tickStep * 4)
     while tickAccum >= tickStep do
         tickAccum = tickAccum - tickStep
 
@@ -72,9 +75,17 @@ function love.update(dt)
         if Drawer ~= DoNothing then
             Drawer()
         end
-
-        Video_Flush()
     end
+    -- Upload pixel buffer to GPU once per render frame (not per tick)
+    Video_Flush()
+
+    -- Sleep to cap frame rate when vsync is unavailable (saves CPU on aarch64)
+    local now = love.timer.getTime()
+    local next = lastFrame + frameStep
+    if now < next then
+        love.timer.sleep(next - now)
+    end
+    lastFrame = love.timer.getTime()
 end
 
 function love.draw()

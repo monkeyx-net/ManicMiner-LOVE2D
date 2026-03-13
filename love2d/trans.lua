@@ -9,8 +9,7 @@ local function DoTransDrawer()
     end
 
     if transLevel > 0 then
-        Video_LevelPaperFill(rshift(transLevel, 3))
-        Video_LevelInkFill(band(transLevel, 0x7))
+        Video_LevelFill(rshift(transLevel, 3), band(transLevel, 0x7))
     end
 end
 

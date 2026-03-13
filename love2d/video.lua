@@ -147,18 +147,59 @@ function Video_TileInk(tile, ink)
     end
 end
 
--- Fill all 512 tiles with paper color
+-- Fill all paper (non-ink) pixels in the game area with a single color.
+-- Flat single-pass loop avoids tile/point indirection, mod/div, and
+-- per-pixel function-call chains — much cheaper on low-spec devices.
 function Video_LevelPaperFill(paper)
-    for tile = 0, 511 do
-        Video_TilePaper(tile, paper)
+    local c  = palette[paper + 1]
+    local pr, pg, pb = c[1], c[2], c[3]
+    local pos = 0
+    for y = 0, 127 do
+        for x = 0, WIDTH - 1 do
+            if band(videoPixel[pos], B_LEVEL) == 0 then
+                imgData:setPixel(x, y, pr, pg, pb, 1)
+            end
+            pos = pos + 1
+        end
     end
+    imageDirty = true
 end
 
--- Fill all 512 tiles with ink color
+-- Fill all ink pixels in the game area with a single color.
 function Video_LevelInkFill(ink)
-    for tile = 0, 511 do
-        Video_TileInk(tile, ink)
+    local c  = palette[ink + 1]
+    local ir, ig, ib = c[1], c[2], c[3]
+    local pos = 0
+    for y = 0, 127 do
+        for x = 0, WIDTH - 1 do
+            if band(videoPixel[pos], B_LEVEL) ~= 0 then
+                imgData:setPixel(x, y, ir, ig, ib, 1)
+            end
+            pos = pos + 1
+        end
     end
+    imageDirty = true
+end
+
+-- Fill paper and ink pixels in a single pass (used by trans.lua).
+-- Halves pixel iterations vs calling Paper + Ink fills separately.
+function Video_LevelFill(paper, ink)
+    local cp = palette[paper + 1]
+    local ci = palette[ink   + 1]
+    local pr, pg, pb = cp[1], cp[2], cp[3]
+    local ir, ig, ib = ci[1], ci[2], ci[3]
+    local pos = 0
+    for y = 0, 127 do
+        for x = 0, WIDTH - 1 do
+            if band(videoPixel[pos], B_LEVEL) == 0 then
+                imgData:setPixel(x, y, pr, pg, pb, 1)
+            else
+                imgData:setPixel(x, y, ir, ig, ib, 1)
+            end
+            pos = pos + 1
+        end
+    end
+    imageDirty = true
 end
 
 -- Draw a 16x16 sprite (u16[16]) at pixel position pos (top-left)

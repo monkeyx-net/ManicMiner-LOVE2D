@@ -56,7 +56,7 @@ jobs:
         env:
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |  
-          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-src.tar.gz"  -O love2d
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-src.tar.gz"  -O love2d.tar.gz
           tar xzf love2d.tar.gz
           cd love-${LOVE_VERSION}
           ./configure --prefix=/usr/local

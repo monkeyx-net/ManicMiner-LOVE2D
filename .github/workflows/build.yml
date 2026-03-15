@@ -55,8 +55,8 @@ jobs:
       - name: Build LÖVE from source
         env:
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
-        run: |
-          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}.tar.gz"
+        run: |  
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-src.tar.gz"
           tar xzf love-${LOVE_VERSION}.tar.gz
           cd love-${LOVE_VERSION}
           ./configure --prefix=/usr/local
@@ -90,7 +90,7 @@ jobs:
 
           # Assemble AppImage using pinned AppImageKit v13 runtime (stable URL)
           mksquashfs AppDir game.squashfs -root-owned -noappend -no-recovery -quiet
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/13/runtime-x86_64" -O runtime
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O runtime
           cat runtime game.squashfs > "${GAME_NAME}-linux-x86_64.AppImage"
           chmod +x "${GAME_NAME}-linux-x86_64.AppImage"
 

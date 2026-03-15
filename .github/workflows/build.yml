@@ -51,7 +51,7 @@ jobs:
             libsdl2-dev libopenal-dev libfreetype6-dev \
             libvorbis-dev libtheora-dev libluajit-5.1-dev \
             libmpg123-dev libflac-dev libmodplug-dev \
-            libcurl4-openssl-dev zlib1g-dev squashfs-tools \ 
+            libcurl4-openssl-dev zlib1g-dev squashfs-tools \
             desktop-file-utils
 
       - name: Build LÖVE from source

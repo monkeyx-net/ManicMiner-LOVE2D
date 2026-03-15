@@ -43,7 +43,7 @@ jobs:
           name: love-file
 
       - name: Install tools
-        run: sudo apt-get install -y squashfs-tools python3
+        run: sudo apt-get install -y squashfs-tools
 
       - name: Build AppImage
         env:
@@ -53,13 +53,9 @@ jobs:
           # Download the LÖVE AppImage as a plain file – do not execute it
           wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-x86_64.AppImage"
 
-          # Find the squashfs offset inside the AppImage (ELF + squashfs concatenated)
-          # then extract directly with unsquashfs – no FUSE, no AppImage runtime needed
-          OFFSET=$(python3 -c "
-data = open('love-${LOVE_VERSION}-linux-x86_64.AppImage','rb').read()
-idx = data.find(b'hsqs')   # squashfs little-endian magic
-print(idx if idx != -1 else data.find(b'sqsh'))
-")
+          # Find squashfs offset (magic 'hsqs') then extract with unsquashfs –
+          # no FUSE, no AppImage runtime needed
+          OFFSET=$(grep -obam1 'hsqs' "love-${LOVE_VERSION}-linux-x86_64.AppImage" | head -1 | cut -d: -f1)
           unsquashfs -o "${OFFSET}" -d squashfs-root \
             "love-${LOVE_VERSION}-linux-x86_64.AppImage"
 

@@ -41,6 +41,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: love-file
+          path: .
 
       - name: Install build dependencies
         run: |
@@ -111,6 +112,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: love-file
+          path: .
 
       - name: Install build dependencies
         run: |
@@ -183,6 +185,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: love-file
+          path: .
 
       - name: Build Windows release
         env:
@@ -219,6 +222,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: love-file
+          path: .
 
       - name: Build macOS app bundle
         env:
@@ -259,6 +263,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: love-file
+          path: .
 
       - uses: actions/setup-java@v4
         with:

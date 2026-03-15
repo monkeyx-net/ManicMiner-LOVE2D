@@ -50,8 +50,8 @@ function love.load()
 end
 
 local tickAccum  = 0
-local tickStep   = 1 / TICKRATE   -- seconds per game tick
-local frameStep  = tickStep        -- target frame interval (matches tick rate)
+local tickStep   = 1 / TICKRATE              -- seconds per game tick (fixed 60 Hz)
+local frameStep  = 1 / TARGET_FPS            -- render interval (configurable)
 local lastFrame  = 0
 
 function love.update(dt)

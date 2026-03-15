@@ -4,7 +4,26 @@ local plinthSprite = {65535,29262,35409,43605,19026,4680,8772,10836,10836,10836,
 local bootSprite   = {10944,13632,16320,2304,2304,8064,4224,4224,4480,8768,8376,22820,17474,17410,17410,65535}
 local goMinerSprite = {96,992,1984,832,992,960,384,960,2016,2016,3952,4016,960,1888,1760,1904}
 
-local bootTicks = 0
+local bootTicks     = 0
+local lastPaperFill = -1
+
+-- Repaint only the paper (non-ink) pixels of the boot sprite at pos with paperColor.
+-- Much cheaper than Video_LevelPaperFill (256 pixels vs 32768) for ticks where
+-- the background color hasn't changed but the sprite has been redrawn over it.
+local function RepaintBootSpritePaper(pos, paperColor)
+    local startpos = pos + 15
+    for row = 0, 15 do
+        local pixel = startpos + row * WIDTH
+        local word = bootSprite[row + 1] or 0
+        for bit = 0, 15 do
+            if band(word, 1) == 0 then
+                System_SetPixel(pixel, paperColor)
+            end
+            pixel = pixel - 1
+            word = rshift(word, 1)
+        end
+    end
+end
 
 -- Text arrays (ink byte at positions 4, 8, 12, 16 for each)
 local textGame = {"\x01\x00\x02", 0x0, "G ", "\x02", 0x0, "a ", "\x02", 0x0, "m ", "\x02", 0x0, "e"}
@@ -26,8 +45,15 @@ end
 
 local function DoGameoverDrawer()
     if bootTicks <= 96 then
-        Video_Sprite(band(bootTicks, 126) * WIDTH + 15 * 8, bootSprite, 0x0, 0x7)
-        Video_LevelPaperFill(rshift(band(bootTicks, 12), 2))
+        local spritePos  = band(bootTicks, 126) * WIDTH + 15 * 8
+        Video_Sprite(spritePos, bootSprite, 0x0, 0x7)
+        local paperColor = rshift(band(bootTicks, 12), 2)
+        if paperColor ~= lastPaperFill then
+            Video_LevelPaperFill(paperColor)   -- full scan only on colour change (~4 times)
+            lastPaperFill = paperColor
+        else
+            RepaintBootSpritePaper(spritePos, paperColor)  -- 256 pixels, not 32768
+        end
     end
 
     if bootTicks < 96 then return end
@@ -61,7 +87,8 @@ local function DoGameoverInit()
     Video_Sprite(112 * WIDTH + 15 * 8, plinthSprite, 0x0, 0x7)
     Video_Sprite(96  * WIDTH + 15 * 8, goMinerSprite, 0x0, 0x7)
 
-    bootTicks = 0
+    bootTicks     = 0
+    lastPaperFill = -1
 
     Audio_Play(MUS_STOP)
     Audio_Sfx(SFX_GAMEOVER)

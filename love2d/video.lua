@@ -22,6 +22,20 @@ do
     end
 end
 
+-- Pre-computed x/y for every pixel position (avoids % and math.floor per call)
+local pixelX = {}
+local pixelY = {}
+do
+    for i = 0, WIDTH * HEIGHT - 1 do
+        pixelX[i] = i % WIDTH
+        pixelY[i] = math.floor(i / WIDTH)
+    end
+end
+
+-- Dirty sprite pixel list: positions written as B_ROBOT or B_MINER this tick
+local spriteDirtyList  = {}
+local spriteDirtyCount = 0
+
 function Video_Init()
     imgData = love.image.newImageData(WIDTH, HEIGHT)
     screenImage = love.graphics.newImage(imgData)
@@ -30,11 +44,10 @@ end
 
 -- Set a single pixel color by palette index
 function System_SetPixel(pos, index)
-    local x = pos % WIDTH
-    local y = math.floor(pos / WIDTH)
-    if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT then return end
+    local x = pixelX[pos]
+    if not x then return end
     local c = palette[index + 1]
-    imgData:setPixel(x, y, c[1], c[2], c[3], 1)
+    imgData:setPixel(x, pixelY[pos], c[1], c[2], c[3], 1)
     imageDirty = true
 end
 
@@ -74,18 +87,18 @@ function Video_Viewport(ww, wh)
 end
 
 -- Clear sprite pixels (B_ROBOT, B_MINER) from the game area, restore to level background.
--- Must be called before Level_Drawer each frame so old sprite positions are erased.
+-- Only touches pixels recorded in spriteDirtyList during the previous draw pass.
 function Video_ClearSprites()
-    local GAME_PIXELS = 128 * WIDTH
+    local bg   = levelBG or 0
     local mask = bor(B_ROBOT, B_MINER)
-    local bg = levelBG or 0
-    for i = 0, GAME_PIXELS - 1 do
-        local f = videoPixel[i]
-        if band(f, mask) ~= 0 then
-            videoPixel[i] = 0
-            System_SetPixel(i, bg)
+    for i = 1, spriteDirtyCount do
+        local p = spriteDirtyList[i]
+        if band(videoPixel[p], mask) ~= 0 then
+            videoPixel[p] = 0
+            System_SetPixel(p, bg)
         end
     end
+    spriteDirtyCount = 0
 end
 
 -- Fill a region of pixels with a solid color (clears collision flags too)
@@ -247,6 +260,8 @@ function Video_SpriteBlend(pos, gfx, ink)
             if band(word, 1) ~= 0 then
                 videoPixel[pixel] = bor(videoPixel[pixel], bor(B_ROBOT, 1))
                 System_SetPixel(pixel, ink)
+                spriteDirtyCount = spriteDirtyCount + 1
+                spriteDirtyList[spriteDirtyCount] = pixel
             end
             pixel = pixel - 1
             word = rshift(word, 1)
@@ -268,6 +283,8 @@ function Video_Miner(pos, gfx, ink)
                 end
                 videoPixel[pixel] = bor(videoPixel[pixel], bor(B_MINER, 1))
                 System_SetPixel(pixel, ink)
+                spriteDirtyCount = spriteDirtyCount + 1
+                spriteDirtyList[spriteDirtyCount] = pixel
             end
             pixel = pixel + 1
             word = rshift(word, 1)

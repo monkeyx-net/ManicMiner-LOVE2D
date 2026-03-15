@@ -11,7 +11,8 @@ rshift = _bit.rshift
 WIDTH  = 256
 HEIGHT = 192
 
-TICKRATE   = 60
+TICKRATE   = 60    -- game logic rate (fixed, do not change)
+TARGET_FPS = 30    -- render frame rate (set lower on weak devices, e.g. 30)
 SAMPLERATE = 22050
 
 -- Pixel buffer flags (videoPixel[])

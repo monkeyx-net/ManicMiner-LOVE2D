@@ -163,9 +163,9 @@ jobs:
             "${GAME_NAME}" > AppDir/love.desktop
           cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/love.svg
 
-          # Build AppImage manually: mksquashfs + plain runtime ELF (no appimagetool needed)
+          # Assemble AppImage using pinned AppImageKit v13 runtime (stable URL)
           mksquashfs AppDir game.squashfs -root-owned -noappend -no-recovery -quiet
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/13/runtime-aarch64" -O runtime
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage" -O runtime
           cat runtime game.squashfs > "${GAME_NAME}-linux-aarch64.AppImage"
           chmod +x "${GAME_NAME}-linux-aarch64.AppImage"
 

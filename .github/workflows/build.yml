@@ -67,7 +67,7 @@ jobs:
 
       - name: Download appimagetool
         run: |
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
           chmod +x appimagetool
 
       - name: Build AppImage
@@ -75,44 +75,28 @@ jobs:
           GAME_NAME: ${{ env.GAME_NAME }}
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |
-          # Create AppDir structure
-          mkdir -p AppDir/usr/bin AppDir/usr/lib AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          
-          # Copy LOVE binary
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+
           cp /usr/local/bin/love AppDir/usr/bin/
-          
-          # Copy .love file to a location where LOVE can find it
           cp ${GAME_NAME}.love AppDir/usr/bin/game.love
-          
-          # Create launcher script that properly loads the game
-          cat > AppDir/AppRun << 'EOF'
-          #!/bin/bash
-          SELF=$(readlink -f "$0")
-          HERE=${SELF%/*}
-          export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
-          cd "${HERE}/usr/bin"
-          exec ./love game.love "$@"
-          EOF
-          chmod +x AppDir/AppRun         
-          # Copy library dependencies
-          cp $(ldd /usr/local/bin/love | grep "=> /" | awk '{print $3}' | sort -u) AppDir/usr/lib/ 2>/dev/null || true
-          
-          # Create desktop entry
-          cat > AppDir/${GAME_NAME}.desktop << EOF
-          [Desktop Entry]
-          Type=Application
-          Name=${GAME_NAME}
-          Comment=A Manic Miner game remake
-          Exec=love
-          Icon=${GAME_NAME}
-          Categories=Game;
-          EOF
-          
-          # Create icon
+
+          printf '#!/bin/sh\nHERE=$(dirname "$(readlink -f "$0")")\nexport LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"\ncd "${HERE}/usr/bin"\nexec ./love game.love "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+
+          # Bundle non-system shared libraries
+          EXCLUDE="ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|libstdc\+\+|libgcc_s|libresolv|librt\.so"
+          ldd AppDir/usr/bin/love \
+            | awk '/=>/ { print $3 }' \
+            | grep -Ev "${EXCLUDE}" \
+            | sort -u \
+            | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
+
+          printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
+            "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
+
           cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/${GAME_NAME}.svg
-          
-          # Build the AppImage
-          ARCH=x86_64 ./appimagetool AppDir "${GAME_NAME}-linux-x86_64.AppImage"
+
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-x86_64.AppImage"
 
 
       - uses: actions/upload-artifact@v4
@@ -142,18 +126,24 @@ jobs:
             libsdl2-dev libopenal-dev libfreetype6-dev \
             libvorbis-dev libtheora-dev libluajit-5.1-dev \
             libmpg123-dev libflac-dev libmodplug-dev \
-            libcurl4-openssl-dev zlib1g-dev squashfs-tools
+            libcurl4-openssl-dev zlib1g-dev squashfs-tools \
+            desktop-file-utils
 
       - name: Build LÖVE from source
         env:
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |
-          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}.tar.gz"
-          tar xzf love-${LOVE_VERSION}.tar.gz
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-src.tar.gz" -O love2d.tar.gz
+          tar xzf love2d.tar.gz
           cd love-${LOVE_VERSION}
           ./configure --prefix=/usr/local
           make -j$(nproc)
           sudo make install
+
+      - name: Download appimagetool
+        run: |
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage" -O appimagetool
+          chmod +x appimagetool
 
       - name: Build AppImage
         env:
@@ -163,7 +153,10 @@ jobs:
           mkdir -p AppDir/usr/bin AppDir/usr/lib
 
           cp /usr/local/bin/love AppDir/usr/bin/
-          cp ${GAME_NAME}.love AppDir/
+          cp ${GAME_NAME}.love AppDir/usr/bin/game.love
+
+          printf '#!/bin/sh\nHERE=$(dirname "$(readlink -f "$0")")\nexport LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"\ncd "${HERE}/usr/bin"\nexec ./love game.love "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
 
           # Bundle non-system shared libraries
           EXCLUDE="ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|libstdc\+\+|libgcc_s|libresolv|librt\.so"
@@ -173,21 +166,12 @@ jobs:
             | sort -u \
             | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
 
-          # AppRun – launch the embedded game directly
-          printf '#!/bin/sh\nHERE=$(dirname "$(readlink -f "$0")")\nexport LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"\nexec "${HERE}/usr/bin/love" "${HERE}/%s.love" "$@"\n' \
-            "${GAME_NAME}" > AppDir/AppRun
-          chmod +x AppDir/AppRun
+          printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
+            "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
-          # Desktop file and icon (required by appimagetool)
-          printf '[Desktop Entry]\nType=Application\nName=%s\nExec=love\nIcon=love\nCategories=Game;\n' \
-            "${GAME_NAME}" > AppDir/love.desktop
-          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/love.svg
+          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/${GAME_NAME}.svg
 
-          # Assemble AppImage using pinned AppImageKit v13 runtime (stable URL)
-          mksquashfs AppDir game.squashfs -root-owned -noappend -no-recovery -quiet
-          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-aarch64.AppImage" -O runtime
-          cat runtime game.squashfs > "${GAME_NAME}-linux-aarch64.AppImage"
-          chmod +x "${GAME_NAME}-linux-aarch64.AppImage"
+          ARCH=aarch64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-aarch64.AppImage"
 
       - uses: actions/upload-artifact@v4
         with:

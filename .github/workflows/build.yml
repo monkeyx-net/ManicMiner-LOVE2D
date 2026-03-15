@@ -55,7 +55,7 @@ jobs:
           chmod +x love-${LOVE_VERSION}-linux-x86_64.AppImage
 
           # Extract AppImage contents (no FUSE needed)
-          ./love-${LOVE_VERSION}-linux-x86_64.AppImage --appimage-extract
+          APPIMAGE_EXTRACT_AND_RUN=1 ./love-${LOVE_VERSION}-linux-x86_64.AppImage --appimage-extract
 
           # Embed game file
           cp ${GAME_NAME}.love squashfs-root/
@@ -72,8 +72,8 @@ jobs:
           # Download and run appimagetool
           wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
           chmod +x appimagetool-x86_64.AppImage
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage squashfs-root \
-            "${GAME_NAME}-linux-x86_64.AppImage"
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-x86_64.AppImage \
+            squashfs-root "${GAME_NAME}-linux-x86_64.AppImage"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -81,12 +81,13 @@ jobs:
           path: ${{ env.GAME_NAME }}-linux-x86_64.AppImage
 
   # ---------------------------------------------------------------------------
-  # 3. Linux aarch64 – build LÖVE 11.5 from source on the ARM64 runner
+  # 3. Linux aarch64 – build LÖVE 11.5 from source on the ARM64 runner,
+  #    then repackage as an AppImage (mirrors the x86_64 approach)
   # ---------------------------------------------------------------------------
   linux-aarch64:
     name: Linux aarch64
     needs: package
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -97,7 +98,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             build-essential autoconf automake libtool pkg-config \
-            libsdl2-dev libopenal-dev libfreetype-dev \
+            libsdl2-dev libopenal-dev libfreetype6-dev \
             libvorbis-dev libtheora-dev libluajit-5.1-dev \
             libmpg123-dev libflac-dev libmodplug-dev \
             libcurl4-openssl-dev zlib1g-dev
@@ -113,17 +114,44 @@ jobs:
           make -j$(nproc)
           sudo make install
 
-      - name: Create fused binary
+      - name: Build AppImage
         env:
           GAME_NAME: ${{ env.GAME_NAME }}
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |
-          cat /usr/local/bin/love ${GAME_NAME}.love > ${GAME_NAME}-linux-aarch64
-          chmod +x ${GAME_NAME}-linux-aarch64
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+
+          cp /usr/local/bin/love AppDir/usr/bin/
+          cp ${GAME_NAME}.love AppDir/
+
+          # Bundle non-system shared libraries
+          EXCLUDE="ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|libstdc\+\+|libgcc_s|libresolv|librt\.so"
+          ldd AppDir/usr/bin/love \
+            | awk '/=>/ { print $3 }' \
+            | grep -Ev "${EXCLUDE}" \
+            | sort -u \
+            | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
+
+          # AppRun – launch the embedded game directly
+          printf '#!/bin/sh\nHERE=$(dirname "$(readlink -f "$0")")\nexport LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"\nexec "${HERE}/usr/bin/love" "${HERE}/%s.love" "$@"\n' \
+            "${GAME_NAME}" > AppDir/AppRun
+          chmod +x AppDir/AppRun
+
+          # Desktop file and icon (required by appimagetool)
+          printf '[Desktop Entry]\nType=Application\nName=%s\nExec=love\nIcon=love\nCategories=Game;\n' \
+            "${GAME_NAME}" > AppDir/love.desktop
+          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/love.svg
+
+          # Package as AppImage
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage"
+          chmod +x appimagetool-aarch64.AppImage
+          ARCH=aarch64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-aarch64.AppImage \
+            AppDir "${GAME_NAME}-linux-aarch64.AppImage"
 
       - uses: actions/upload-artifact@v4
         with:
           name: linux-aarch64
-          path: ${{ env.GAME_NAME }}-linux-aarch64
+          path: ${{ env.GAME_NAME }}-linux-aarch64.AppImage
 
   # ---------------------------------------------------------------------------
   # 4. Windows x86_64 – fuse exe + DLLs from the official zip

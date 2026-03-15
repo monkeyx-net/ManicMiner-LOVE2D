@@ -16,7 +16,7 @@ function DoSpgDrawer()
         end
 
         if band(this, B_MINER) ~= 0 then
-            air = 8
+            air = air + 4
         end
 
         tile = tile + dir

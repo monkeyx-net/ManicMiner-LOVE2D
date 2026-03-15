@@ -1,0 +1,264 @@
+name: Build Standalone
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  LOVE_VERSION: "11.5"
+  GAME_NAME: "ManicMiner"
+
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # 1. Package the game source into a .love archive (zip of src/)
+  # ---------------------------------------------------------------------------
+  package:
+    name: Create .love file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package game
+        run: cd src && zip -9 -r ../${{ env.GAME_NAME }}.love .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: love-file
+          path: ${{ env.GAME_NAME }}.love
+
+  # ---------------------------------------------------------------------------
+  # 2. Linux x86_64 – embed game into the official LÖVE AppImage
+  # ---------------------------------------------------------------------------
+  linux-x86_64:
+    name: Linux x86_64
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+
+      - name: Install tools
+        run: sudo apt-get install -y libfuse2 squashfs-tools
+
+      - name: Build AppImage
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+          GAME_NAME: ${{ env.GAME_NAME }}
+        run: |
+          # Download LÖVE AppImage
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-x86_64.AppImage"
+          chmod +x love-${LOVE_VERSION}-linux-x86_64.AppImage
+
+          # Extract AppImage contents (no FUSE needed)
+          ./love-${LOVE_VERSION}-linux-x86_64.AppImage --appimage-extract
+
+          # Embed game file
+          cp ${GAME_NAME}.love squashfs-root/
+
+          # Replace AppRun so the app launches the game directly
+          cat > squashfs-root/AppRun << 'APPRUN'
+          #!/bin/sh
+          HERE=$(dirname "$(readlink -f "$0")")
+          export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/love" "${HERE}/ManicMiner.love" "$@"
+          APPRUN
+          chmod +x squashfs-root/AppRun
+
+          # Download and run appimagetool
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage squashfs-root \
+            "${GAME_NAME}-linux-x86_64.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: ${{ env.GAME_NAME }}-linux-x86_64.AppImage
+
+  # ---------------------------------------------------------------------------
+  # 3. Linux aarch64 – build LÖVE 11.5 from source on the ARM64 runner
+  # ---------------------------------------------------------------------------
+  linux-aarch64:
+    name: Linux aarch64
+    needs: package
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            libsdl2-dev libopenal-dev libfreetype-dev \
+            libvorbis-dev libtheora-dev libluajit-5.1-dev \
+            libmpg123-dev libflac-dev libmodplug-dev \
+            libcurl4-openssl-dev zlib1g-dev
+
+      - name: Build LÖVE from source
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+        run: |
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}.tar.gz"
+          tar xzf love-${LOVE_VERSION}.tar.gz
+          cd love-${LOVE_VERSION}
+          ./configure --prefix=/usr/local
+          make -j$(nproc)
+          sudo make install
+
+      - name: Create fused binary
+        env:
+          GAME_NAME: ${{ env.GAME_NAME }}
+        run: |
+          cat /usr/local/bin/love ${GAME_NAME}.love > ${GAME_NAME}-linux-aarch64
+          chmod +x ${GAME_NAME}-linux-aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64
+          path: ${{ env.GAME_NAME }}-linux-aarch64
+
+  # ---------------------------------------------------------------------------
+  # 4. Windows x86_64 – fuse exe + DLLs from the official zip
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+
+      - name: Build Windows release
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+          GAME_NAME: ${{ env.GAME_NAME }}
+        run: |
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-win64.zip"
+          unzip -q love-${LOVE_VERSION}-win64.zip
+          cd love-${LOVE_VERSION}-win64
+
+          # Fuse love.exe + game archive into a single executable
+          cat love.exe ../${GAME_NAME}.love > ${GAME_NAME}.exe
+
+          # Bundle with required DLLs
+          mkdir -p ../${GAME_NAME}-windows-x86_64
+          cp ${GAME_NAME}.exe ../${GAME_NAME}-windows-x86_64/
+          cp *.dll ../${GAME_NAME}-windows-x86_64/
+          cd ..
+          zip -9 -r ${GAME_NAME}-windows-x86_64.zip ${GAME_NAME}-windows-x86_64/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: ${{ env.GAME_NAME }}-windows-x86_64.zip
+
+  # ---------------------------------------------------------------------------
+  # 5. macOS – embed game in the official LÖVE .app bundle
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS
+    needs: package
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+
+      - name: Build macOS app bundle
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+          GAME_NAME: ${{ env.GAME_NAME }}
+        run: |
+          curl -L -o love-macos.zip \
+            "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-macos.zip"
+          unzip -q love-macos.zip
+
+          # Place game in bundle Resources – LÖVE detects it automatically
+          cp ${GAME_NAME}.love love.app/Contents/Resources/
+
+          # Update bundle metadata
+          /usr/libexec/PlistBuddy -c \
+            "Set :CFBundleIdentifier com.example.manicminer" \
+            love.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c \
+            "Set :CFBundleName ${GAME_NAME}" \
+            love.app/Contents/Info.plist
+
+          mv love.app ${GAME_NAME}.app
+          zip -9 -r ${GAME_NAME}-macos.zip ${GAME_NAME}.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: ${{ env.GAME_NAME }}-macos.zip
+
+  # ---------------------------------------------------------------------------
+  # 6. Android – build APK with embedded game using love-android
+  # ---------------------------------------------------------------------------
+  android:
+    name: Android
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK + NDK
+        run: |
+          sudo apt-get install -y wget unzip
+          # Use the SDK already present on the runner
+          echo "ANDROID_HOME=${ANDROID_HOME}" >> $GITHUB_ENV
+          sdkmanager --install "ndk;25.2.9519653" "platforms;android-33" \
+            "build-tools;33.0.2" 2>/dev/null | tail -5
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Clone love-android
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+        run: |
+          # Try the release branch first, fall back to main
+          git clone --recurse-submodules --depth=1 \
+            --branch "release-${LOVE_VERSION}" \
+            https://github.com/love2d/love-android.git 2>/dev/null \
+          || git clone --recurse-submodules --depth=1 \
+            https://github.com/love2d/love-android.git
+
+      - name: Embed game and build APK
+        env:
+          GAME_NAME: ${{ env.GAME_NAME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          # Copy game into the embed flavor's assets directory
+          mkdir -p love-android/app/src/embed/assets
+          cp ${GAME_NAME}.love love-android/app/src/embed/assets/game.love
+
+          cd love-android
+          chmod +x gradlew
+
+          # Build the embedded debug APK (no signing needed for testing)
+          ./gradlew :app:assembleEmbedNoRecordDebug --no-daemon \
+            -Pandroid.ndkVersion=25.2.9519653
+
+          # Locate and copy APK
+          APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
+          cp "${APK}" ../${GAME_NAME}-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: ${{ env.GAME_NAME }}-android.apk

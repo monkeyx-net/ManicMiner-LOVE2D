@@ -16,9 +16,7 @@ The game has been converted to love2d to support a wider variety of platforms. I
 
 ## Video & Audio
 
-I have attempted to love2d to keep the effect below
-
-Some subtle improvements have been made to make the game more enjoyable:
+I have attempted to keep the following in the love2d conversion:-
 
 - Per pixel colouring. This eliminates colour clashing.
 - 16 colour palette.

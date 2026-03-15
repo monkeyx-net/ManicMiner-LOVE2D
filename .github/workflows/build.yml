@@ -31,7 +31,7 @@ jobs:
           path: ${{ env.GAME_NAME }}.love
 
   # ---------------------------------------------------------------------------
-  # 2. Linux x86_64 – embed game into the official LÖVE AppImage
+  # 2. Linux x86_64 – build LÖVE from source, assemble AppImage
   # ---------------------------------------------------------------------------
   linux-x86_64:
     name: Linux x86_64
@@ -42,34 +42,55 @@ jobs:
         with:
           name: love-file
 
-      - name: Install tools
-        run: sudo apt-get install -y squashfs-tools
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            libsdl2-dev libopenal-dev libfreetype6-dev \
+            libvorbis-dev libtheora-dev libluajit-5.1-dev \
+            libmpg123-dev libflac-dev libmodplug-dev \
+            libcurl4-openssl-dev zlib1g-dev squashfs-tools
+
+      - name: Build LÖVE from source
+        env:
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
+        run: |
+          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}.tar.gz"
+          tar xzf love-${LOVE_VERSION}.tar.gz
+          cd love-${LOVE_VERSION}
+          ./configure --prefix=/usr/local
+          make -j$(nproc)
+          sudo make install
 
       - name: Build AppImage
         env:
-          LOVE_VERSION: ${{ env.LOVE_VERSION }}
           GAME_NAME: ${{ env.GAME_NAME }}
+          LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |
-          # Download the LÖVE AppImage as a plain file – do not execute it
-          wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-x86_64.AppImage"
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+          cp /usr/local/bin/love AppDir/usr/bin/
+          cp ${GAME_NAME}.love AppDir/
 
-          # Find squashfs offset (magic 'hsqs') then extract with unsquashfs –
-          # no FUSE, no AppImage runtime needed
-          OFFSET=$(grep -obam1 'hsqs' "love-${LOVE_VERSION}-linux-x86_64.AppImage" | head -1 | cut -d: -f1)
-          unsquashfs -o "${OFFSET}" -d squashfs-root \
-            "love-${LOVE_VERSION}-linux-x86_64.AppImage"
+          # Bundle non-system shared libraries
+          EXCLUDE="ld-linux|libm\.so|libc\.so|libdl\.so|libpthread\.so|libstdc\+\+|libgcc_s|libresolv|librt\.so"
+          ldd AppDir/usr/bin/love \
+            | awk '/=>/ { print $3 }' \
+            | grep -Ev "${EXCLUDE}" \
+            | sort -u \
+            | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
 
-          # Embed game file
-          cp ${GAME_NAME}.love squashfs-root/
-
-          # Replace AppRun so the app launches the game directly
+          # AppRun, desktop file, icon
           printf '#!/bin/sh\nHERE=$(dirname "$(readlink -f "$0")")\nexport LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"\nexec "${HERE}/usr/bin/love" "${HERE}/%s.love" "$@"\n' \
-            "${GAME_NAME}" > squashfs-root/AppRun
-          chmod +x squashfs-root/AppRun
+            "${GAME_NAME}" > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          printf '[Desktop Entry]\nType=Application\nName=%s\nExec=love\nIcon=love\nCategories=Game;\n' \
+            "${GAME_NAME}" > AppDir/love.desktop
+          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/love.svg
 
-          # Repack as AppImage: mksquashfs + plain runtime ELF (no appimagetool)
-          mksquashfs squashfs-root game.squashfs -root-owned -noappend -no-recovery -quiet
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-x86_64" -O runtime
+          # Assemble AppImage using pinned AppImageKit v13 runtime (stable URL)
+          mksquashfs AppDir game.squashfs -root-owned -noappend -no-recovery -quiet
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/13/runtime-x86_64" -O runtime
           cat runtime game.squashfs > "${GAME_NAME}-linux-x86_64.AppImage"
           chmod +x "${GAME_NAME}-linux-x86_64.AppImage"
 
@@ -142,7 +163,7 @@ jobs:
 
           # Build AppImage manually: mksquashfs + plain runtime ELF (no appimagetool needed)
           mksquashfs AppDir game.squashfs -root-owned -noappend -no-recovery -quiet
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-aarch64" -O runtime
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/13/runtime-aarch64" -O runtime
           cat runtime game.squashfs > "${GAME_NAME}-linux-aarch64.AppImage"
           chmod +x "${GAME_NAME}-linux-aarch64.AppImage"
 

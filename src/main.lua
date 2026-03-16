@@ -25,8 +25,9 @@ function love.load()
     require("title")
     require("loader")
 
-    -- Window title
+    -- Window title and icon
     love.window.setTitle("Manic Miner")
+    love.window.setIcon(love.image.newImageData("icon.png"))
 
     -- Hide mouse cursor
     love.mouse.setVisible(false)

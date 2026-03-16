@@ -72,8 +72,5 @@ local function DoTransResponder()
 end
 
 function Trans_Action()
-    Responder = (gameDemo ~= 0) and DoTransResponder or DoNothing
-    Ticker    = DoTransInit
-    Drawer    = DoTransDrawer
-    Action    = DoNothing
+    SetState((gameDemo ~= 0) and DoTransResponder or DoNothing, DoTransInit, DoTransDrawer, DoNothing)
 end

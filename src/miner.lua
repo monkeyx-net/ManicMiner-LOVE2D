@@ -88,6 +88,18 @@ function Miner_DrawSeqSprite(pos, paper, ink)
     Video_Sprite(pos, minerSprite[seqFrame + 1], paper, ink)
 end
 
+-- Iterate tiles occupied by the miner. fn(tile) returns true to stop early.
+local function ForMinerTiles(fn)
+    local tile = minerTile
+    local adj = 1
+    for i = 0, minerAlign - 1 do
+        if fn(tile) then return true end
+        tile = tile + adj
+        adj = bxor(adj, 30)
+    end
+    return false
+end
+
 -- Internal: check if tile position is solid (blocks horizontal movement)
 local function IsSolid(tile)
     if Level_GetTileType(tile) == T_SOLID then
@@ -261,21 +273,15 @@ function DoMinerDrawer()
     end
 
     -- Check harm tiles in occupied positions
-    local tile = minerTile
-    local adj = 1
-    for i = 0, minerAlign - 1 do
+    if ForMinerTiles(function(tile)
         if Level_GetTileType(tile) == T_HARM then
             Action = Die_Action
-            return
+            return true
         end
-        tile = tile + adj
-        adj = bxor(adj, 30)
-    end
+    end) then return end
 
     -- Pick up items and interact with tiles
-    tile = minerTile
-    adj = 1
-    for i = 0, minerAlign - 1 do
+    ForMinerTiles(function(tile)
         local ttype = Level_GetTileType(tile)
         if ttype == T_ITEM then
             Game_GotItem(tile)
@@ -284,9 +290,7 @@ function DoMinerDrawer()
         elseif ttype == T_SPACE then
             Level_SetSpgTile(tile, B_MINER)
         end
-        tile = tile + adj
-        adj = bxor(adj, 30)
-    end
+    end)
 end
 
 function Miner_Init()

@@ -36,8 +36,5 @@ local function DoDieInit()
 end
 
 function Die_Action()
-    Responder = DoNothing
-    Ticker    = DoDieInit
-    Drawer    = DoDieDrawer
-    Action    = DoNothing
+    SetState(DoNothing, DoDieInit, DoDieDrawer, DoNothing)
 end

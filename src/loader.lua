@@ -64,8 +64,5 @@ local function DoLoaderResponder()
 end
 
 function Loader_Action()
-    Responder = DoLoaderResponder
-    Ticker    = DoLoaderInit
-    Drawer    = DoLoaderDrawer
-    Action    = DoNothing
+    SetState(DoLoaderResponder, DoLoaderInit, DoLoaderDrawer, DoNothing)
 end

@@ -32,8 +32,5 @@ local function DoVictoryInit()
 end
 
 function Victory_Action()
-    Responder = DoNothing
-    Ticker    = DoVictoryInit
-    Drawer    = DoNothing
-    Action    = DoNothing
+    SetState(DoNothing, DoVictoryInit, DoNothing, DoNothing)
 end

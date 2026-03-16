@@ -599,8 +599,8 @@ function Robots_Init()
 
     for i = 1, 8 do
         local s = startList[i]
+        local r = robotThis[i]
         if s then
-            local r = robotThis[i]
             r.DoMove  = moveMap[s.move] or DoNothing
             r.DoDraw  = DoRobotDraw
             r.DoSpg   = s.spg and DoRobotSpg or DoNothing
@@ -621,7 +621,6 @@ function Robots_Init()
             r.nframes = s.nframes
             r.frame   = s.frame
         else
-            local r = robotThis[i]
             r.DoMove  = DoNothing
             r.DoDraw  = DoNothing
             r.DoSpg   = DoNothing

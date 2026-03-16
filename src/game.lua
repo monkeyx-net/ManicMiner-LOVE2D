@@ -316,10 +316,7 @@ function Game_ChangeLevel()
 end
 
 function Game_Action()
-    Responder = (gameDemo ~= 0) and DoGameDemoResponder or DoGameResponder
-    Ticker    = DoGameInit
-    Drawer    = DoGameDrawer
-    Action    = DoNothing
+    SetState((gameDemo ~= 0) and DoGameDemoResponder or DoGameResponder, DoGameInit, DoGameDrawer, DoNothing)
 end
 
 Scores_Load()

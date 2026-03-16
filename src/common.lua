@@ -147,6 +147,13 @@ Drawer    = nil
 
 function DoNothing() end
 
+function SetState(responder, ticker, drawer, action)
+    Responder = responder
+    Ticker    = ticker
+    Drawer    = drawer
+    Action    = action
+end
+
 function DoQuit()
     love.event.quit()
 end

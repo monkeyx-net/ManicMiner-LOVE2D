@@ -99,7 +99,7 @@ local TEXT_32 = "                                "
 local textTicker = {
     "\x01\x00\x02\x02" .. "M" .. "\x02\x06" .. "A" .. "\x02\x04" .. "N" .. "\x02\x05" .. "I" .. "\x02\x03" .. "C " .. "\x02\x05" .. "M" .. "\x02\x03" .. "I" .. "\x02\x02" .. "N" .. "\x02\x06" .. "E" .. "\x02\x04" .. "R   " ..
     "\x02\x07" .. "(C) Bug-Byte Ltd. 1983   By Matthew Smith" .. TEXT_32 ..
-    "\x02\x05" .. "Cursor Keys = Left & Right   " .. "\x02\x06" .. "Space = Jump   " .. "\x02\x03" .. "Pause/Tab = Pause   " .. "\x02\x04" .. "Alt = Tune On/Off" .. TEXT_32 ..
+    "\x02\x05" .. "Cursor Keys/PAD = Left & Right   " .. "\x02\x06" .. "Space/A/B = Jump   " .. "\x02\x03" .. "Pause/Tab/X = Pause   " .. "\x02\x04" .. "Alt = Tune On/Off/Y" .. TEXT_32 ..
     "\x02\x07" .. "Guide " .. "\x02\x05" .. "M" .. "\x02\x03" .. "i" .. "\x02\x02" .. "n" .. "\x02\x06" .. "e" .. "\x02\x04" .. "r" .. "\x02\x07" .. " Willy through 20 " .. "\x02\x02" .. "lethal " .. "\x02\x07" .. "caverns ...",
 }
 
@@ -126,7 +126,7 @@ end
 local function DoTitleTicker()
     textPos = textPos - 2
 
-    if textPos < textEnd[gameVersion + 1] then
+    if textPos < textEnd[gameVersion + 1] and audioMusicPlaying == MUS_STOP then
         gameDemo = 1
         Action = DoStartGame
     end
@@ -158,7 +158,7 @@ local function DoTitleInit()
     Video_WriteLarge(82 * WIDTH, 0, "\x01\x0a\x02\x07\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16")
 
     Video_Write(80 * WIDTH + 21 * 8, "\x02\x00" .. "Starring...")
-    Video_Write(88 * WIDTH + 22 * 8, "\x02\x06" .. "Miner Willy")
+    Video_Write(88 * WIDTH + 22 * 18, "\x02\x06" .. "Miner Willy")
 
     Video_WriteLarge(104 * WIDTH, 6 * 8, "\x02\x00" .. "PRESS " .. "\x02\x06" .. "ENTER" .. "\x02\x00" .. " TO START")
 
@@ -189,10 +189,7 @@ local function DoTitleResponder()
 end
 
 function Title_Action()
-    Responder = DoTitleResponder
-    Ticker    = DoTitleInit
-    Drawer    = Audio_Drawer
-    Action    = DoTitleAction
+    SetState(DoTitleResponder, DoTitleInit, Audio_Drawer, DoTitleAction)
 end
 
 -- ---------------------------------------------------------------------------
@@ -227,8 +224,5 @@ local function DoHiScoresResponder()
 end
 
 function HiScores_Action()
-    Responder = DoHiScoresResponder
-    Ticker    = DoHiScoresInit
-    Drawer    = DoNothing
-    Action    = DoNothing
+    SetState(DoHiScoresResponder, DoHiScoresInit, DoNothing, DoNothing)
 end

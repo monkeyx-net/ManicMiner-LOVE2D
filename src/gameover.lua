@@ -97,8 +97,5 @@ local function DoGameoverInit()
 end
 
 function Gameover_Action()
-    Responder = DoNothing
-    Ticker    = DoGameoverInit
-    Drawer    = DoGameoverDrawer
-    Action    = DoNothing
+    SetState(DoNothing, DoGameoverInit, DoGameoverDrawer, DoNothing)
 end

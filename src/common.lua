@@ -182,11 +182,6 @@ function System_IsKey(key)
         end
     end
 
-    -- ALT and Tab also act as jump
-    if not held and key == KEY_JUMP then
-        held = love.keyboard.isDown("lalt") or love.keyboard.isDown("ralt")
-            or love.keyboard.isDown("tab")
-    end
 
     return held and 1 or 0
 end

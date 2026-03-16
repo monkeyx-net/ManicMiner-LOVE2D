@@ -29,7 +29,7 @@ local loaderTicks = 0
 local loaderFlash = 0
 local loaderTimer = {}
 
-local BUILD = "v1.0"  -- version string
+local BUILD = "love2d - v0.91"  -- version string
 
 local function DoLoaderDrawer()
     -- Copy colour data to rows 256..511 (the logo area)
@@ -49,9 +49,9 @@ end
 local function DoLoaderInit()
     Video_PixelFill(0, WIDTH * HEIGHT, 0)
     Video_CopyColour(loaderColour[1], 256, 256)
-    Video_Write(184 * WIDTH, "\x02\x07" .. "monkeyx")
+    Video_Write(184 * WIDTH, "\x02\x07" .. "monkeyx-net")
     -- Right-justify build string
-    local buildWidth = #BUILD * 8  -- approximate
+    local buildWidth = #BUILD * 4  -- approximate
     Video_Write(184 * WIDTH + WIDTH - buildWidth, "\x02\x01" .. BUILD)
 
     Timer_Set(loaderTimer, 3, TICKRATE)

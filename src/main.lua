@@ -114,8 +114,10 @@ function love.keypressed(key, scancode, isrepeat)
         mapped = KEY_ESCAPE
     elseif key == "pause" then
         mapped = KEY_PAUSE
-    elseif key == "tab" or key == "lalt" or key == "ralt" then
-        mapped = KEY_JUMP
+    elseif key == "tab" then
+        mapped = KEY_PAUSE
+    elseif key == "lalt" or key == "ralt" then
+        mapped = KEY_MUTE
     elseif key == "0" then mapped = KEY_0
     elseif key == "1" then mapped = KEY_1
     elseif key == "2" then mapped = KEY_2

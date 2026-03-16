@@ -51,7 +51,7 @@ local function DoLoaderInit()
     Video_CopyColour(loaderColour[1], 256, 256)
     Video_Write(184 * WIDTH, "\x02\x07" .. "monkeyx-net")
     -- Right-justify build string
-    local buildWidth = #BUILD * 4  -- approximate
+    local buildWidth = #BUILD * 5  -- approximate
     Video_Write(184 * WIDTH + WIDTH - buildWidth, "\x02\x01" .. BUILD)
 
     Timer_Set(loaderTimer, 3, TICKRATE)

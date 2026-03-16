@@ -226,6 +226,14 @@ function Game_Pause(paused)
     end
 end
 
+local function DrawLevelName()
+    Video_PixelFill(128 * WIDTH, 8 * WIDTH, 0x7)  -- clear 8 rows (white bg)
+    local name = levelData[gameLevel].name
+    local hi   = levelHiScores[gameLevel]
+    Video_Write(129 * WIDTH + 4,         "\x01\x07\x02\x03" .. name)
+    Video_Write(129 * WIDTH + WIDTH - 70, "\x01\x07\x02\x03" .. string.format("Best:%6d", hi))
+end
+
 local function DoGameInit()
     Level_Init()
     Robots_Init()
@@ -251,6 +259,7 @@ local function DoGameInit()
 
     gameTicks = 0
 
+    DrawLevelName()
     System_Border(levelBorder[gameLevel + 1])
 
     Timer_Set(gameTimer, 12, TICKRATE)

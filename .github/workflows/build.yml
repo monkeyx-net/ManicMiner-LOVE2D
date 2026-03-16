@@ -91,6 +91,9 @@ jobs:
             | sort -u \
             | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
 
+          # Explicitly bundle liblove (not a direct ldd dependency)
+          cp -L /usr/local/lib/liblove-${LOVE_VERSION}.so AppDir/usr/lib/ 2>/dev/null || true
+
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
@@ -165,6 +168,9 @@ jobs:
             | grep -Ev "${EXCLUDE}" \
             | sort -u \
             | xargs -I{} cp -L {} AppDir/usr/lib/ 2>/dev/null || true
+
+          # Explicitly bundle liblove (not a direct ldd dependency)
+          cp -L /usr/local/lib/liblove-${LOVE_VERSION}.so AppDir/usr/lib/ 2>/dev/null || true
 
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop

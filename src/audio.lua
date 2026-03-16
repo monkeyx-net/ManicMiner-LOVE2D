@@ -107,6 +107,12 @@ local musicChannel = {
     audioChannel[7], audioChannel[8]
 }
 
+local function ChannelOff(ch)
+    ch.active = false
+    ch.left[3] = 0
+    ch.right[3] = 0
+end
+
 -- SFX channel info
 local function newSfx(ch)
     return {
@@ -603,16 +609,12 @@ function Audio_MusicEvent()
         elseif kind == EV_UNDRAW then
             DrawListAdd(curMusicScore[curMusicIdx], 0)
             curMusicIdx = curMusicIdx + 1
-            musicChannel[data + 1].active = false
-            musicChannel[data + 1].left[3] = 0
-            musicChannel[data + 1].right[3] = 0
+            ChannelOff(musicChannel[data + 1])
             time = curMusicScore[curMusicIdx] or 0
             curMusicIdx = curMusicIdx + 1
             musicDelta = musicDelta + time
         elseif kind == EV_NOTEOFF then
-            musicChannel[data + 1].active = false
-            musicChannel[data + 1].left[3] = 0
-            musicChannel[data + 1].right[3] = 0
+            ChannelOff(musicChannel[data + 1])
             time = curMusicScore[curMusicIdx] or 0
             curMusicIdx = curMusicIdx + 1
             musicDelta = musicDelta + time

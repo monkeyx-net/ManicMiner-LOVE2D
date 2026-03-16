@@ -545,61 +545,59 @@ local function textCode(text, i)
     return 0
 end
 
--- Draw small text at pixel position pos
-function Video_Write(pos, text)
+-- Iterate over characters in text, handling color escape codes, calling fn(c) per char
+local function TextIter(text, fn)
     local i = 1
     while i <= #text do
-        local c = string.byte(text, i)
         if textCode(text, i) ~= 0 then
             i = i + 2
         else
-            local idx = c - 32 + 1
-            local cs = charSet[idx]
-            if cs then
-                local width = cs[1]
-                for col = 2, width do
-                    local pixel = pos
-                    local byte = cs[col]
-                    for bit = 0, 7 do
-                        local v = band(rshift(byte, bit), 1)
-                        System_SetPixel(pixel, textInk[v + 1])
-                        pixel = pixel + WIDTH
-                    end
-                    pos = pos + 1
-                end
-            end
+            fn(string.byte(text, i))
             i = i + 1
         end
     end
 end
 
+-- Draw small text at pixel position pos
+function Video_Write(pos, text)
+    TextIter(text, function(c)
+        local cs = charSet[c - 32 + 1]
+        if cs then
+            local width = cs[1]
+            for col = 2, width do
+                local pixel = pos
+                local byte = cs[col]
+                for bit = 0, 7 do
+                    local v = band(rshift(byte, bit), 1)
+                    System_SetPixel(pixel, textInk[v + 1])
+                    pixel = pixel + WIDTH
+                end
+                pos = pos + 1
+            end
+        end
+    end)
+end
+
 -- Draw large text (16-row tall) at pixel position pos, starting at x column
 function Video_WriteLarge(pos, x, text)
-    local i = 1
-    while i <= #text do
-        local c = string.byte(text, i)
-        if textCode(text, i) ~= 0 then
-            i = i + 2
-        else
-            local cs = charSetLarge[c + 1]
-            if cs then
-                for col = 0, 7 do
-                    local cx = x + col
-                    if cx >= 0 and cx < WIDTH then
-                        local pixel = pos + cx
-                        local word = cs[col + 1] or 0
-                        for bit = 0, 15 do
-                            local v = band(rshift(word, bit), 1)
-                            System_SetPixel(pixel, textInk[v + 1])
-                            pixel = pixel + WIDTH
-                        end
+    TextIter(text, function(c)
+        local cs = charSetLarge[c + 1]
+        if cs then
+            for col = 0, 7 do
+                local cx = x + col
+                if cx >= 0 and cx < WIDTH then
+                    local pixel = pos + cx
+                    local word = cs[col + 1] or 0
+                    for bit = 0, 15 do
+                        local v = band(rshift(word, bit), 1)
+                        System_SetPixel(pixel, textInk[v + 1])
+                        pixel = pixel + WIDTH
                     end
                 end
             end
-            x = x + 8
-            i = i + 1
         end
-    end
+        x = x + 8
+    end)
 end
 
 -- Piano key drawing (for title screen keyboard)

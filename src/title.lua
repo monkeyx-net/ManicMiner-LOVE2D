@@ -158,7 +158,7 @@ local function DoTitleInit()
     Video_WriteLarge(82 * WIDTH, 0, "\x01\x0a\x02\x07\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16")
 
     Video_Write(80 * WIDTH + 21 * 8, "\x02\x00" .. "Starring...")
-    Video_Write(88 * WIDTH + 22 * 18, "\x02\x06" .. "Miner Willy")
+    Video_Write(88 * WIDTH + 22 * 8, "\x02\x06" .. "Miner Willy")
 
     Video_WriteLarge(104 * WIDTH, 6 * 8, "\x02\x00" .. "PRESS " .. "\x02\x06" .. "ENTER" .. "\x02\x00" .. " TO START")
 

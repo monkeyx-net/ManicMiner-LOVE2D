@@ -574,6 +574,7 @@ function Video_Write(pos, text)
                 end
                 pos = pos + 1
             end
+            pos = pos + 1  -- 1px gap between characters
         end
     end)
 end

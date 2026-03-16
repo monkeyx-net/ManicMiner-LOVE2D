@@ -102,7 +102,6 @@ jobs:
 
           ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-x86_64.AppImage"
 
-
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
@@ -177,6 +176,8 @@ jobs:
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
+          pwd
+          ls -lha
           cp images/${GAME_NAME}.svg AppDir/${GAME_NAME}.svg
 
           ARCH=aarch64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-aarch64.AppImage"

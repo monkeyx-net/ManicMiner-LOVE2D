@@ -8,11 +8,50 @@ ZX Spectrum version, written in C and using the SDL2 library by [fawtytoo](https
 This version was created by me as the project started by fawtytoo was archived and I was always keen 
 to see this excellent conversion run on a wider variety of platforms.
 
+![Manic Miner loading screen](images/loader.gif)
 
 ## Supported Platforms
 
-The game has been converted to love2d to support a wider variety of platforms. It also as had controller support added.
+The game has been converted to love2d to support a wider variety of platforms.
 
+- Android
+- Linux - aarch64
+- Linux - x86_64
+- Mac
+- Windows
+
+![Manic Miner title screen](images/title.png)
+
+## Controls
+
+### Keys
+
+Cursor Keys
+Left and Right
+Space = Jump
+Alt = Music On/Off
+Tab = Pause
+S = High Scores (On Title Screen)
+
+### Controller
+
+D-PAD and Left Analogue
+Left and Right
+
+A = Jump
+B = High Scores (On Title Screen)
+X = Pause
+Y = Music On/Off
+
+## High Scores
+
+High scores are saved and recorded per level
+
+![Manic Miner title screen](images/highscores.png)
+
+Each level shows the current high score for that level.
+
+![Manic Miner title screen](images/level1.png)
 
 ## Video & Audio
 
@@ -24,16 +63,11 @@ I have attempted to keep the following in the love2d conversion:-
 - The piano keyboard on the title screen has been corrected.
 - The title screen has been redrawn in places for a more balanced look.
 - The title and in-game music scores have been reproduced and are polyphonic.
-- The sound effects are approximately the same as in the original game and
-include stereo panning effects.
-- To give the music and sound effects a retro feel, a square wave generator is
-used to give it a "beepy" sound.
+- The sound effects are approximately the same as in the original game and include stereo panning effects.
+- To give the music and sound effects a retro feel, a square wave generator is used to give it a "beepy" sound.
 
 ## Cheat mode
 
-Cheat mode is activated just like in the original game by typing the code. Once
-activated, switching levels is as simple.
+Cheat mode is activated just like in the original game by typing the code. Once activated, switching levels is as simple.
 
-The keyboard numbers 1 to 0 are levels 1 to 10, and the Shift key changes
-that to levels 11 to 20. Then press Enter to change level. These key
-combinations need to be pressed simultaneously.
+The keyboard numbers 1 to 0 are levels 1 to 10, and the Shift key changes that to levels 11 to 20. Then press Enter to change level. These key combinations need to be pressed simultaneously.

@@ -205,13 +205,11 @@ local function DoHiScoresInit()
         local row = (16 + i * 8) * WIDTH
         local name = levelData[i].name
         if #name > 20 then name = name:sub(1, 20) end
-        local paddedName = name .. string.rep(" ", 20 - #name)
         local score = levelHiScores[i]
         local ink = inks[(i % 2) + 1]
-        local line = "\x01\x00\x02" .. string.char(ink) ..
-                     string.format("%2d ", i + 1) .. paddedName ..
-                     string.format(" %6d", score)
-        Video_Write(row, line)
+        local inkCode = "\x01\x00\x02" .. string.char(ink)
+        Video_Write(row,       inkCode .. string.format("%2d ", i + 1) .. name)
+        Video_Write(row + 130, inkCode .. string.format("%6d", score))
     end
 
     Video_Write(184 * WIDTH, "\x01\x00\x02\x02PRESS ANY KEY TO RETURN")

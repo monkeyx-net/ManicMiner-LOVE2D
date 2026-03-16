@@ -75,6 +75,7 @@ jobs:
           GAME_NAME: ${{ env.GAME_NAME }}
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
         run: |
+          CURRENT_DIR=$(pwd)
           mkdir -p AppDir/usr/bin AppDir/usr/lib
 
           cp /usr/local/bin/love AppDir/usr/bin/
@@ -98,7 +99,7 @@ jobs:
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
-          cp images/${GAME_NAME}.svg AppDir/${GAME_NAME}.svg
+          cp $CURRENT_DIR/images/${GAME_NAME}.svg AppDir/${GAME_NAME}.svg
 
           ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-x86_64.AppImage"
 

@@ -98,7 +98,7 @@ jobs:
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
-          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/${GAME_NAME}.svg
+          cp images/${GAME_NAME}.svg AppDir/${GAME_NAME}.svg
 
           ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-x86_64.AppImage"
 
@@ -177,7 +177,7 @@ jobs:
           printf '[Desktop Entry]\nType=Application\nName=%s\nComment=A Manic Miner game remake\nExec=love\nIcon=%s\nCategories=Game;\n' \
             "${GAME_NAME}" "${GAME_NAME}" > AppDir/${GAME_NAME}.desktop
 
-          cp love-${LOVE_VERSION}/platform/unix/love.svg AppDir/${GAME_NAME}.svg
+          cp images/${GAME_NAME}.svg AppDir/${GAME_NAME}.svg
 
           ARCH=aarch64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool AppDir "${GAME_NAME}-linux-aarch64.AppImage"
 

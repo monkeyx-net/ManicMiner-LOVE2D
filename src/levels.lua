@@ -861,6 +861,13 @@ local spgTileState = {}
 
 local conveyorPhase = 0
 
+-- Kong level wall gap tiles (col 17, rows 11-12)
+local KONG_TILE1 = 369
+local KONG_TILE2 = 401
+
+-- Set true when Kong has landed; portal can only open after this on Kong levels
+kongFallen = false
+
 function Level_Init()
     local lev = levelData[gameLevel]
     levelCurrent = lev
@@ -904,6 +911,8 @@ function Level_Init()
     for i = 0, 511 do spgTileState[i] = 0 end
 
     conveyorPhase = 0
+
+    kongFallen = false
 end
 
 function Level_GetTileType(tile)
@@ -941,15 +950,28 @@ end
 
 function Level_Switch(tile)
     if tile < 0 or tile > 511 then return end
-    if levelTileType[tile] == T_SWITCHOFF then
-        levelTileType[tile] = T_SWITCHON
-        -- redraw as switch-on
-        local pos = TILE2PIXEL(tile)
-        local lev = levelCurrent
-        local gfxIdx = levelTileGfx[tile]
-        local ink  = lev.info[gfxIdx + 1] and lev.info[gfxIdx + 1].colour or 0
-        Video_Tile(pos, levelGfx[gfxIdx + 1] or {0,0,0,0,0,0,0,0},
-                   rshift(ink, 4), band(ink, 0x0f), 8)
+    if levelTileType[tile] ~= T_SWITCHOFF then return end
+
+    levelTileType[tile] = T_SWITCHON
+    -- advance gfx to switch-on entry (C: levelTile[tile].gfx += 8 = next 8-byte entry)
+    local lev    = levelCurrent
+    local gfxIdx = levelTileGfx[tile]
+    levelTileGfx[tile] = gfxIdx + 1
+    -- C: levelTile[tile].ink = 0x4 (green), paper stays 0
+    Video_Tile(TILE2PIXEL(tile), levelGfx[gfxIdx + 2] or {0,0,0,0,0,0,0,0}, 0, 4, 8)
+
+    -- Kong Beast levels: switches have specific effects
+    if gameLevel == 7 or gameLevel == 11 then
+        if tile == 18 then
+            -- Right switch: remove the floor under Kong and make him fall
+            Level_TileDelete(79)
+            Level_TileDelete(80)
+            Robots_Kong()
+        elseif tile == 6 then
+            -- Left switch: open 2-tile gap in central wall (rows 11-12, col 17)
+            Level_TileDelete(KONG_TILE1)
+            Level_TileDelete(KONG_TILE2)
+        end
     end
 end
 
@@ -971,6 +993,10 @@ function Level_Ticker()
 
 end
 
+function Level_AllItemsCollected()
+    return levelItemCount == 0
+end
+
 function Level_Drawer()
     local lev = levelCurrent
     if not lev then return end
@@ -989,6 +1015,9 @@ function Level_Drawer()
             local pos = TILE2PIXEL(tile)
             if ttype == T_ITEM then
                 ink = bor(band(gameTicks, 6), 1)  -- cycle 1,3,5,7,1,...
+            elseif ttype == T_SWITCHON then
+                ink = 4  -- C: levelTile[tile].ink = 0x4 (green)
+                paper = 0
             end
 
             if ttype == T_CONVEYL or ttype == T_CONVEYR then
@@ -1025,7 +1054,3 @@ function Level_Drawer()
     end
 end
 
-function Level_ItemDrawer()
-    -- Items flash - handled by drawing with alternate ink each frame
-    -- Already drawn in Level_Drawer since items have gfx
-end

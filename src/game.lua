@@ -156,6 +156,8 @@ function Game_GotItem(tile)
         Robots_Eugene()
     end
 
+    if (gameLevel == 7 or gameLevel == 11) and not kongFallen then return end
+
     Portal_Ready()
 end
 
@@ -173,7 +175,6 @@ local function DoGameDrawer()
     Level_Drawer()
     Robots_Drawer()
     Miner_Drawer()
-    Level_ItemDrawer()
     Spg_Drawer()
     Portal_Drawer()
 end
@@ -292,8 +293,8 @@ local function DoGameResponder()
 end
 
 function Game_GameReset()
-    gameLives = 3
-    gameLevel = 0
+    gameLives = 10
+    gameLevel = 7
     gameScore = 0
     gamePaused = 0
 

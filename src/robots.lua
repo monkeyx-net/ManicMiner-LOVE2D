@@ -257,45 +257,45 @@ local robotStartData = {
     },
     -- level 1
     {
-        {x=18, y=3,  min=8,   max=144, speed=8, move="left",  gfx=1,  ink=0x7, nframes=7, frame=7, tile=0},
-        {x=29, y=13, min=96,  max=232, speed=8, move="left",  gfx=1,  ink=0x7, nframes=7, frame=7, tile=0},
+        {x=18, y=3,  min=8,   max=144, speed=6, move="left",  gfx=1,  ink=0x7, nframes=7, frame=7, tile=0},
+        {x=29, y=13, min=96,  max=232, speed=6, move="left",  gfx=1,  ink=0x7, nframes=7, frame=7, tile=0},
     },
     -- level 2
     {
-        {x=19, y=13, min=8,   max=152, speed=8, move="left",  gfx=2,  ink=0x3, nframes=7, frame=7, tile=0},
-        {x=16, y=3,  min=8,   max=128, speed=8, move="left",  gfx=2,  ink=0x5, nframes=7, frame=7, tile=0},
-        {x=18, y=3,  min=144, max=232, speed=8, move="right", gfx=2,  ink=0xe, nframes=7, frame=0, tile=0},
+        {x=19, y=13, min=8,   max=152, speed=6, move="left",  gfx=2,  ink=0x3, nframes=7, frame=7, tile=0},
+        {x=16, y=3,  min=8,   max=128, speed=6, move="left",  gfx=2,  ink=0x5, nframes=7, frame=7, tile=0},
+        {x=18, y=3,  min=144, max=232, speed=6, move="right", gfx=2,  ink=0xe, nframes=7, frame=0, tile=0},
     },
     -- level 3
     {
-        {x=1,  y=13, min=8,   max=80,  speed=8, move="right", gfx=3,  ink=0x5, nframes=7, frame=0, tile=0},
-        {x=7,  y=13, min=48,  max=120, speed=8, move="right", gfx=3,  ink=0x8, nframes=7, frame=0, tile=0},
+        {x=1,  y=13, min=8,   max=80,  speed=6, move="right", gfx=3,  ink=0x5, nframes=7, frame=0, tile=0},
+        {x=7,  y=13, min=48,  max=120, speed=6, move="right", gfx=3,  ink=0x8, nframes=7, frame=0, tile=0},
     },
     -- level 4 (EUGENE)
     {
-        {x=12, y=3,  min=8,   max=96,  speed=8, move="left",  gfx=5,  ink=0x6, nframes=7, frame=7, tile=0},
-        {x=4,  y=7,  min=32,  max=96,  speed=8, move="right", gfx=5,  ink=0x0, nframes=7, frame=0, tile=0},
+        {x=12, y=3,  min=8,   max=96,  speed=6, move="left",  gfx=5,  ink=0x6, nframes=7, frame=7, tile=0},
+        {x=4,  y=7,  min=32,  max=96,  speed=6, move="right", gfx=5,  ink=0x0, nframes=7, frame=0, tile=0},
         {x=15, y=0,  min=0,   max=88,  speed=1, move="down",  gfx=4,  ink=0x7, nframes=0, frame=0, tile=0},
     },
     -- level 5
     {
-        {x=6,  y=8,  min=48,  max=104, speed=8, move="right", gfx=6,  ink=0xe, nframes=7, frame=0, tile=0},
-        {x=14, y=8,  min=112, max=168, speed=8, move="right", gfx=6,  ink=0x3, nframes=7, frame=1, tile=0},
-        {x=8,  y=13, min=64,  max=160, speed=8, move="right", gfx=6,  ink=0x5, nframes=7, frame=2, tile=0},
-        {x=24, y=13, min=192, max=232, speed=8, move="right", gfx=6,  ink=0x2, nframes=7, frame=3, tile=0},
+        {x=6,  y=8,  min=48,  max=104, speed=6, move="right", gfx=6,  ink=0xe, nframes=7, frame=0, tile=0},
+        {x=14, y=8,  min=112, max=168, speed=6, move="right", gfx=6,  ink=0x3, nframes=7, frame=1, tile=0},
+        {x=8,  y=13, min=64,  max=160, speed=6, move="right", gfx=6,  ink=0x5, nframes=7, frame=2, tile=0},
+        {x=24, y=13, min=192, max=232, speed=6, move="right", gfx=6,  ink=0x2, nframes=7, frame=3, tile=0},
     },
     -- level 6
     {
-        {x=15, y=1,  min=120, max=232, speed=8, move="right", gfx=7,  ink=0x7, nframes=7, frame=0, tile=0},
-        {x=10, y=8,  min=16,  max=80,  speed=8, move="left",  gfx=7,  ink=0x2, nframes=7, frame=7, tile=0},
-        {x=17, y=13, min=136, max=232, speed=8, move="right", gfx=7,  ink=0xe, nframes=7, frame=0, tile=0},
+        {x=15, y=1,  min=120, max=232, speed=6, move="right", gfx=7,  ink=0x7, nframes=7, frame=0, tile=0},
+        {x=10, y=8,  min=16,  max=80,  speed=6, move="left",  gfx=7,  ink=0x2, nframes=7, frame=7, tile=0},
+        {x=17, y=13, min=136, max=232, speed=6, move="right", gfx=7,  ink=0xe, nframes=7, frame=0, tile=0},
     },
     -- level 7
     {
         {x=15, y=0,  min=0,   max=100, speed=4, move="kong",  gfx=8,  ink=0xe, nframes=1, frame=0, tile=0},
-        {x=9,  y=13, min=8,   max=72,  speed=8, move="left",  gfx=9,  ink=0x2, nframes=3, frame=7, tile=0},
-        {x=11, y=11, min=88,  max=120, speed=4, move="right", gfx=9,  ink=0xe, nframes=3, frame=0, tile=0},
-        {x=18, y=7,  min=144, max=168, speed=8, move="right", gfx=9,  ink=0x6, nframes=3, frame=0, tile=0},
+        {x=9,  y=13, min=8,   max=72,  speed=6, move="left",  gfx=9,  ink=0x2, nframes=3, frame=7, tile=0},
+        {x=11, y=11, min=88,  max=120, speed=5, move="right", gfx=9,  ink=0xe, nframes=3, frame=0, tile=0},
+        {x=18, y=7,  min=144, max=168, speed=6, move="right", gfx=9,  ink=0x6, nframes=3, frame=0, tile=0},
     },
     -- level 8
     {
@@ -481,6 +481,12 @@ local function DoRobotFall()
     if curRobot.y == curRobot.max then
         curRobot.DoMove = DoNothing
         curRobot.DoDraw = DoNothing
+        if gameLevel == 7 or gameLevel == 11 then
+            kongFallen = true
+            if Level_AllItemsCollected() then
+                Portal_Ready()
+            end
+        end
     else
         curRobot.y = curRobot.y + curRobot.speed
         -- call kong animation using robotThis[1] as curRobot context

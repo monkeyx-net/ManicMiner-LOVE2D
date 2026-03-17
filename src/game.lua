@@ -293,8 +293,8 @@ local function DoGameResponder()
 end
 
 function Game_GameReset()
-    gameLives = 10
-    gameLevel = 18
+    gameLives = 3
+    gameLevel = 1
     gameScore = 0
     gamePaused = 0
 

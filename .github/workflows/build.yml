@@ -3,8 +3,6 @@ name: Build Standalone
 on:
   push:
     branches: [main]
-    tags: ['v*']
-  workflow_dispatch:
 
 env:
   LOVE_VERSION: "11.5"
@@ -14,10 +12,43 @@ env:
 jobs:
 
   # ---------------------------------------------------------------------------
+  # 0. Read version from CHANGELOG.md; skip everything if already released
+  # ---------------------------------------------------------------------------
+  version:
+    name: Read version
+    runs-on: ubuntu-latest
+    outputs:
+      tag:    ${{ steps.read.outputs.tag }}
+      version: ${{ steps.read.outputs.version }}
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from CHANGELOG.md
+        id: read
+        run: |
+          VERSION=$(grep -m1 '^## \[' CHANGELOG.md | sed 's/## \[\([^]]*\)\].*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}"    >> $GITHUB_OUTPUT
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.read.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true"  >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ---------------------------------------------------------------------------
   # 1. Package the game source into a .love archive (zip of src/)
   # ---------------------------------------------------------------------------
   package:
     name: Create .love file
+    needs: version
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +70,8 @@ jobs:
   # ---------------------------------------------------------------------------
   linux-x86_64:
     name: Linux x86_64
-    needs: package
+    needs: [version, package]
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -64,7 +96,7 @@ jobs:
       - name: Build LÖVE from source
         env:
           LOVE_VERSION: ${{ env.LOVE_VERSION }}
-        run: |  
+        run: |
           wget -q "https://github.com/love2d/love/releases/download/${LOVE_VERSION}/love-${LOVE_VERSION}-linux-src.tar.gz"  -O love2d.tar.gz
           tar xzf love2d.tar.gz
           cd love-${LOVE_VERSION}
@@ -120,7 +152,8 @@ jobs:
   # ---------------------------------------------------------------------------
   linux-aarch64:
     name: Linux aarch64
-    needs: package
+    needs: [version, package]
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/download-artifact@v4
@@ -203,7 +236,8 @@ jobs:
   # ---------------------------------------------------------------------------
   windows:
     name: Windows
-    needs: package
+    needs: [version, package]
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -240,7 +274,8 @@ jobs:
   # ---------------------------------------------------------------------------
   macos:
     name: macOS
-    needs: package
+    needs: [version, package]
+    if: needs.version.outputs.exists == 'false'
     runs-on: macos-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -281,7 +316,8 @@ jobs:
   # ---------------------------------------------------------------------------
   android:
     name: Android
-    needs: package
+    needs: [version, package]
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -340,12 +376,12 @@ jobs:
           path: ${{ env.GAME_NAME }}-android.apk
 
   # ---------------------------------------------------------------------------
-  # 7. Release – publish a GitHub Release with all artifacts on version tags
+  # 7. Release – publish a GitHub Release with all artifacts
   # ---------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [package, linux-x86_64, linux-aarch64, windows, macos, android]
+    needs: [version, package, linux-x86_64, linux-aarch64, windows, macos, android]
+    if: needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -361,21 +397,18 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         id: changelog
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#v}"
-          # Extract section for this version between its heading and the next
+          VERSION="${{ needs.version.outputs.version }}"
           NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
-          # Write to a file to preserve newlines
           echo "$NOTES" > release_notes.txt
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.changelog.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --title "Manic Miner v${VERSION}" \
+          gh release create "${TAG}" \
+            --title "Manic Miner ${TAG}" \
             --notes-file release_notes.txt \
             artifacts/${{ env.GAME_NAME }}.love \
             artifacts/${{ env.GAME_NAME }}-linux-x86_64.AppImage \

@@ -978,6 +978,10 @@ function Level_Switch(tile)
     end
 end
 
+function Level_ClearSpgTiles()
+    for i = 0, 511 do spgTileState[i] = 0 end
+end
+
 function Level_SetSpgTile(tile, flag)
     if tile < 0 or tile > 511 then return end
     spgTileState[tile] = flag

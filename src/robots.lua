@@ -593,6 +593,9 @@ function Robots_Ticker()
 end
 
 function Robots_Drawer()
+    if gameLevel == SPG then
+        Level_ClearSpgTiles()
+    end
     for i = 1, 8 do
         curRobot = robotThis[i]
         if curRobot.DoDraw then

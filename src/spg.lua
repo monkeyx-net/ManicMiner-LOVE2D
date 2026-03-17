@@ -1,25 +1,27 @@
 -- spg.lua: Solar Power Generator special level logic (level 18)
 
-local spgBeamPath = {}  -- tiles painted by beam last frame
+local spgBeamPath  = {}
+local spgBeamCount = 0
 
 function DoSpgDrawer()
     local bg = levelBG or 0
 
     -- Clear previous beam path before redrawing
-    for i = 1, #spgBeamPath do
+    for i = 1, spgBeamCount do
         local t = spgBeamPath[i]
         if Level_GetTileType(t) == T_SPACE then
             Video_TilePaper(t, bg)
         end
-        spgBeamPath[i] = nil
     end
+    spgBeamCount = 0
 
     local tile = 23
     local dir  = 32
     local air  = 0
 
     repeat
-        spgBeamPath[#spgBeamPath + 1] = tile
+        spgBeamCount = spgBeamCount + 1
+        spgBeamPath[spgBeamCount] = tile
         Video_TilePaper(tile, 0x6)
         Video_TileInk(tile, 0xe)
 

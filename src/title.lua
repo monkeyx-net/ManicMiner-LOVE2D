@@ -113,6 +113,19 @@ function Title_ScreenCopy()
     Video_CopyColour(titleColour, 0, 256 + 32)
 end
 
+-- Copy only the 8 game tile rows of the title screen (not the 9th row which overlaps level content)
+function Title_BGCopy()
+    local pixel = 0
+    for si = 1, 2048 do
+        local byte = titlePixels[si] or 0
+        for bit = 7, 0, -1 do
+            videoPixel[pixel] = band(rshift(byte, bit), 1)
+            pixel = pixel + 1
+        end
+    end
+    Video_CopyColour(titleColour, 0, 256)
+end
+
 local function DoStartGame()
     Video_PixelFill(0, WIDTH * HEIGHT, 0)
     Video_PixelFill(128 * WIDTH, 16 * WIDTH, 0x7)

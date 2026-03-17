@@ -158,6 +158,11 @@ local gamepadButtonMap = {
 }
 
 function love.gamepadpressed(joystick, button)
+    if (button == "back" or button == "start") and
+       joystick:isGamepadDown("back") and joystick:isGamepadDown("start") then
+        love.event.quit()
+        return
+    end
     local mapped = gamepadButtonMap[button]
     if mapped then
         gameInput = mapped

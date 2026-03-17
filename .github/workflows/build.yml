@@ -336,3 +336,72 @@ jobs:
         with:
           name: android
           path: ${{ env.GAME_NAME }}-android.apk
+
+  # ---------------------------------------------------------------------------
+  # 7. Release – publish a GitHub Release with all artifacts on version tags
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [package, linux-x86_64, linux-aarch64, windows, macos, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: love-file
+          path: artifacts/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-x86_64
+          path: artifacts/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-aarch64
+          path: artifacts/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
+          path: artifacts/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: artifacts/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: android
+          path: artifacts/
+
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          # Extract section for this version between its heading and the next
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Write to a file to preserve newlines
+          echo "$NOTES" > release_notes.txt
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.changelog.outputs.version }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Manic Miner v${VERSION}" \
+            --notes-file release_notes.txt \
+            artifacts/${{ env.GAME_NAME }}.love \
+            artifacts/${{ env.GAME_NAME }}-linux-x86_64.AppImage \
+            artifacts/${{ env.GAME_NAME }}-linux-aarch64.AppImage \
+            artifacts/${{ env.GAME_NAME }}-windows-x86_64.zip \
+            artifacts/${{ env.GAME_NAME }}-macos.zip \
+            artifacts/${{ env.GAME_NAME }}-android.apk

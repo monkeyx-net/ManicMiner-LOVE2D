@@ -2,7 +2,7 @@
 
 -- Start positions for each of the 20 levels
 local minerStart = {
-    {x=2,  y=13, frame=0, dir=D_RIGHT, ink=0x8},  -- 0
+    {x=2,  y=13, frame=0, dir=D_RIGHT, ink=0x7},  -- 0
     {x=2,  y=13, frame=0, dir=D_RIGHT, ink=0x7},  -- 1
     {x=2,  y=13, frame=0, dir=D_RIGHT, ink=0x7},  -- 2
     {x=29, y=13, frame=0, dir=D_LEFT,  ink=0x4},  -- 3

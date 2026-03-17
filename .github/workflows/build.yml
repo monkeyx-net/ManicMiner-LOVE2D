@@ -350,34 +350,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: love-file
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-x86_64
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-aarch64
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: macos
-          path: artifacts/
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: android
+          merge-multiple: true
           path: artifacts/
 
       - name: Extract release notes from CHANGELOG.md

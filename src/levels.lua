@@ -80,7 +80,7 @@ levelData[1] = {
         {colour=0x18,type=T_CONVEYR},
         {colour=0x75,type=T_SOLID},
         {colour=0x15,type=T_FLOOR},
-        {colour=0x19,type=T_COLLAPSE},
+        {colour=0x15,type=T_COLLAPSE},
         {colour=0x15,type=T_HARM},
         {colour=0x10,type=T_ITEM}
     }
@@ -122,7 +122,7 @@ levelData[2] = {
         {colour=0x09,type=T_CONVEYL},
         {colour=0xf6,type=T_SOLID},
         {colour=0x0c,type=T_FLOOR},
-        {colour=0x0d,type=T_COLLAPSE},
+        {colour=0x0c,type=T_COLLAPSE},
         {colour=0x0a,type=T_HARM},
         {colour=0x02,type=T_HARM},
         {colour=0x00,type=T_ITEM}
@@ -164,7 +164,7 @@ levelData[3] = {
         {colour=0x06,type=T_CONVEYR},
         {colour=0x24,type=T_SOLID},
         {colour=0x0e,type=T_FLOOR},
-        {colour=0x0f,type=T_COLLAPSE},
+        {colour=0x0e,type=T_COLLAPSE},
         {colour=0x02,type=T_HARM},
         {colour=0x00,type=T_ITEM}
     }

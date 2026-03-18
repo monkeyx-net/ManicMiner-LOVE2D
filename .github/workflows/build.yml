@@ -3,6 +3,7 @@ name: Build Standalone
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   LOVE_VERSION: "11.5"
@@ -48,7 +49,7 @@ jobs:
   package:
     name: Create .love file
     needs: version
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +72,7 @@ jobs:
   linux-x86_64:
     name: Linux x86_64
     needs: [version, package]
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -153,7 +154,7 @@ jobs:
   linux-aarch64:
     name: Linux aarch64
     needs: [version, package]
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/download-artifact@v4
@@ -237,7 +238,7 @@ jobs:
   windows:
     name: Windows
     needs: [version, package]
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -275,7 +276,7 @@ jobs:
   macos:
     name: macOS
     needs: [version, package]
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -317,7 +318,7 @@ jobs:
   android:
     name: Android
     needs: [version, package]
-    if: needs.version.outputs.exists == 'false'
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -381,7 +382,7 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [version, package, linux-x86_64, linux-aarch64, windows, macos, android]
-    if: needs.version.outputs.exists == 'false'
+    if: github.event_name == 'push' && needs.version.outputs.exists == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write

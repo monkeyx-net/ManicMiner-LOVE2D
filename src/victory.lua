@@ -19,7 +19,7 @@ local function DoVictoryInit()
     Level_Drawer()
     Robots_Drawer()
 
-    Video_Sprite(24 * WIDTH + 19 * 8, victoryMinerSprite, 0x0, 0x7)
+    Video_Sprite(minerY * WIDTH + minerX, victoryMinerSprite, 0x0, 0x7)
 
     victoryTimer = 50 * 9
 

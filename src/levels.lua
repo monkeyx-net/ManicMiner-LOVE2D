@@ -1031,6 +1031,7 @@ function Level_Drawer()
         Title_BGCopy()
     end
 
+    local itemSeq = 0
     for tile = 0, 511 do
         local gfxIdx = levelTileGfx[tile]
         if gfxIdx > 0 then
@@ -1045,7 +1046,8 @@ function Level_Drawer()
             if ttype == T_VOID then goto continue end  -- background comes from Title_BGCopy
             local pos = TILE2PIXEL(tile)
             if ttype == T_ITEM then
-                ink = bor(band(gameTicks, 6), 1)  -- cycle 1,3,5,7,1,...
+                ink = bor(band(gameTicks + itemSeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item
+                itemSeq = itemSeq + 1
             elseif ttype == T_SWITCHON then
                 ink = 4  -- C: levelTile[tile].ink = 0x4 (green)
                 paper = 0

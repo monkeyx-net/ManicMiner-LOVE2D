@@ -2,6 +2,21 @@
 
 All notable changes to Manic Miner LÖVE2D are documented here.
 
+## [0.9.2] - 2026-03-18
+
+### Fixed
+
+- Keys now blink in sequence rather in parallel
+- Solar Beams now deflect correctly
+- Victory sprite now shows(Colours still need to be fixed)
+
+### New
+
+- U Key - Now saves current position and level
+- O Key - access options screen
+  - Set starting level
+  - Set number of lives
+
 ## [0.9.1] - 2026-03-17
 
 ### Overview

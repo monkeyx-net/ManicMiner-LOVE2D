@@ -304,6 +304,7 @@ local function sfxVictory(sfx)
             sfx.pitchIdx = 1
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
             sfx.state = "victory"
+            sfx.channel.active = true
         end
     end
 end

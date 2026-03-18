@@ -58,10 +58,21 @@ gameAirOld  = 0
 -- Function variables (global, swapped at runtime)
 Game_ExtraLife = DoNothing
 Game_DrawAir   = DoNothing
+Game_SaveFlash = DoNothing
 Spg_Drawer     = DoNothing
 Miner_Ticker   = DoNothing
 Miner_Drawer   = DoNothing
 Portal_Ticker  = DoNothing
+
+local gameSaveFlashCount = 0
+
+local function DoSaveFlash()
+    gameSaveFlashCount = gameSaveFlashCount - 1
+    System_Border(gameSaveFlashCount > 0 and 0x7 or levelBorder[gameLevel + 1])
+    if gameSaveFlashCount <= 0 then
+        Game_SaveFlash = DoNothing
+    end
+end
 
 function Game_GetScores()
     return gameScore, gameHiScore
@@ -178,6 +189,7 @@ local function DoGameDrawer()
 
     Game_DrawAir()
     Game_ExtraLife()
+    Game_SaveFlash()
 
     if gameFrame == 0 then return end
 
@@ -296,6 +308,7 @@ local function DoGameInit()
 
         Level_SetSaveData(ps.level_data)
         Miner_SetSaveData(ps.miner)
+        Robots_SetSaveData(ps.robots)
         if ps.portal.ready == 1 then
             Portal_Ready()
         end
@@ -335,6 +348,8 @@ local function DoGameResponder()
         Action = Title_Action
     elseif gameInput == KEY_U then
         SaveState_Save()
+        gameSaveFlashCount = 16
+        Game_SaveFlash = DoSaveFlash
     else
         Cheat_Responder()
     end

@@ -607,6 +607,65 @@ function Robots_Drawer()
     end
 end
 
+local function moveToName(fn)
+    if fn == DoRobotLeft   then return "left"
+    elseif fn == DoRobotRight  then return "right"
+    elseif fn == DoRobotUp     then return "up"
+    elseif fn == DoRobotDown   then return "down"
+    elseif fn == DoRobotKong   then return "kong"
+    elseif fn == DoRobotSkylab then return "skylab"
+    elseif fn == DoRobotFall   then return "fall"
+    elseif fn == DoRobotEugene then return "eugene"
+    end
+    return "none"
+end
+
+local extendedMoveMap = {
+    fall   = DoRobotFall,
+    eugene = DoRobotEugene,
+}
+
+function Robots_GetSaveData()
+    local t = {}
+    for i = 1, 8 do
+        local r = robotThis[i]
+        t[i] = {
+            x       = r.x,
+            y       = r.y,
+            frame   = r.frame,
+            tile    = r.tile,
+            subpix  = r.subpix,
+            nframes = r.nframes,
+            ink     = r.ink,
+            move    = moveToName(r.DoMove),
+            active  = (r.DoDraw ~= DoNothing) and 1 or 0,
+        }
+    end
+    return t
+end
+
+function Robots_SetSaveData(t)
+    for i = 1, 8 do
+        local d = t[i]
+        if not d then goto continue end
+        local r = robotThis[i]
+        r.x      = d.x
+        r.y      = d.y
+        r.frame  = d.frame
+        r.tile   = d.tile
+        r.subpix = d.subpix
+        r.nframes = d.nframes
+        r.ink    = d.ink
+        if d.active == 0 then
+            r.DoMove = DoNothing
+            r.DoDraw = DoNothing
+        else
+            r.DoMove = moveMap[d.move] or extendedMoveMap[d.move] or DoNothing
+        end
+        ::continue::
+    end
+end
+
 function Robots_Init()
     local startList = robotStartData[gameLevel + 1] or {}
 

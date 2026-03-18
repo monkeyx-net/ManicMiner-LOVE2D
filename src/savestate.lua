@@ -77,6 +77,24 @@ function SaveState_Save()
     local pd = Portal_GetSaveData()
     add("portalready", pd.ready)
 
+    local rd = Robots_GetSaveData()
+    local rx, ry, rf, rt, rs, rn, ri, rm, ra = {}, {}, {}, {}, {}, {}, {}, {}, {}
+    for i = 1, 8 do
+        local r = rd[i]
+        rx[i] = r.x;  ry[i] = r.y;     rf[i] = r.frame
+        rt[i] = r.tile; rs[i] = r.subpix; rn[i] = r.nframes
+        ri[i] = r.ink; rm[i] = r.move; ra[i] = r.active
+    end
+    parts[#parts + 1] = "robotX="      .. table.concat(rx, ",")
+    parts[#parts + 1] = "robotY="      .. table.concat(ry, ",")
+    parts[#parts + 1] = "robotFrame="  .. table.concat(rf, ",")
+    parts[#parts + 1] = "robotTile="   .. table.concat(rt, ",")
+    parts[#parts + 1] = "robotSubpix=" .. table.concat(rs, ",")
+    parts[#parts + 1] = "robotNframes=".. table.concat(rn, ",")
+    parts[#parts + 1] = "robotInk="    .. table.concat(ri, ",")
+    parts[#parts + 1] = "robotMove="   .. table.concat(rm, ",")
+    parts[#parts + 1] = "robotActive=" .. table.concat(ra, ",")
+
     love.filesystem.write(SAVE_FILE, table.concat(parts, "\n"))
 end
 
@@ -128,5 +146,31 @@ function SaveState_Load()
         portal = {
             ready = tonumber(state.portalready) or 0,
         },
+        robots = (function()
+            local rx  = parseArray(state.robotX)
+            local ry  = parseArray(state.robotY)
+            local rf  = parseArray(state.robotFrame)
+            local rt  = parseArray(state.robotTile)
+            local rs  = parseArray(state.robotSubpix)
+            local rn  = parseArray(state.robotNframes)
+            local ri  = parseArray(state.robotInk)
+            local ra  = parseArray(state.robotActive)
+            local rm  = {}
+            local mi  = 0
+            for s in (state.robotMove or ""):gmatch("[^,]+") do
+                mi = mi + 1; rm[mi] = s
+            end
+            local t = {}
+            for i = 1, 8 do
+                t[i] = {
+                    x = rx[i] or 0, y = ry[i] or 0,
+                    frame = rf[i] or 0, tile = rt[i] or 0,
+                    subpix = rs[i] or 0, nframes = rn[i] or 0,
+                    ink = ri[i] or 0, active = ra[i] or 0,
+                    move = rm[i] or "none",
+                }
+            end
+            return t
+        end)(),
     }
 end

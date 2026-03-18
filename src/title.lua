@@ -232,21 +232,23 @@ end
 -- ---------------------------------------------------------------------------
 -- Options menu
 
-local optionSel   = 0   -- 0 = lives row, 1 = level row
-local optionLives = 3
-local optionLevel = 0
+local optionSel     = 0     -- 0 = lives row, 1 = level row, 2 = delete save
+local optionLives   = 3
+local optionLevel   = 0
+local optionHasSave = false
 
 -- Large text is 16 rows tall; rows for options items:
 --   Row 48: LIVES         (48-63)
 --   Row 64: LEVEL number  (64-79)
 --   Row 80: level name    (80-95)
+--   Row 96: DELETE SAVE   (96-111, only when save exists)
 
 local function DrawOptionsItems()
     local livesInk = (optionSel == 0) and "\x06" or "\x07"
     local levelInk = (optionSel == 1) and "\x06" or "\x07"
 
-    -- Clear and redraw both item rows + name row together
-    Video_PixelFill(48 * WIDTH, 48 * WIDTH, 0)
+    -- Clear item rows (64 rows covers all four possible rows)
+    Video_PixelFill(48 * WIDTH, 64 * WIDTH, 0)
 
     Video_WriteLarge(48 * WIDTH, 16,
         "\x01\x00\x02" .. livesInk ..
@@ -258,12 +260,19 @@ local function DrawOptionsItems()
 
     Video_WriteLarge(80 * WIDTH, 24,
         "\x01\x00\x02\x05" .. levelData[optionLevel].name)
+
+    if optionHasSave then
+        local saveInk = (optionSel == 2) and "\x02" or "\x03"
+        Video_WriteLarge(96 * WIDTH, 16,
+            "\x01\x00\x02" .. saveInk .. "DELETE SAVE")
+    end
 end
 
 local function DoOptionsInit()
-    optionLives = gameConfigLives
-    optionLevel = gameConfigLevel
-    optionSel   = 0
+    optionLives   = gameConfigLives
+    optionLevel   = gameConfigLevel
+    optionSel     = 0
+    optionHasSave = SaveState_Exists()
 
     Video_PixelFill(0, WIDTH * HEIGHT, 0)
     Video_WriteLarge(16 * WIDTH, math.floor((WIDTH - 7 * 8) / 2),
@@ -274,34 +283,46 @@ local function DoOptionsInit()
     -- Instructions: rows 112, 128, 160 (all 16 rows tall, non-overlapping)
     Video_WriteLarge(112 * WIDTH, 4, "\x01\x00\x02\x03LEFT/RIGHT = CHANGE VALUE")
     Video_WriteLarge(128 * WIDTH, 4, "\x01\x00\x02\x03UP/DOWN = SWITCH SETTING")
-    Video_WriteLarge(160 * WIDTH, 4, "\x01\x00\x02\x07ENTER = SAVE   ESC = CANCEL")
+    Video_WriteLarge(160 * WIDTH, 4, "\x01\x00\x02\x07ENTER = OK   ESC = CANCEL")
 
     Ticker = DoNothing
 end
 
 local function DoOptionsResponder()
     if gameInput == KEY_UP or gameInput == KEY_DOWN then
-        optionSel = 1 - optionSel
+        local maxSel = optionHasSave and 2 or 1
+        if gameInput == KEY_UP then
+            optionSel = (optionSel - 1 + maxSel + 1) % (maxSel + 1)
+        else
+            optionSel = (optionSel + 1) % (maxSel + 1)
+        end
         DrawOptionsItems()
     elseif gameInput == KEY_LEFT then
         if optionSel == 0 then
             optionLives = math.max(1, optionLives - 1)
-        else
+            DrawOptionsItems()
+        elseif optionSel == 1 then
             optionLevel = math.max(0, optionLevel - 1)
+            DrawOptionsItems()
         end
-        DrawOptionsItems()
     elseif gameInput == KEY_RIGHT then
         if optionSel == 0 then
             optionLives = math.min(9, optionLives + 1)
-        else
+            DrawOptionsItems()
+        elseif optionSel == 1 then
             optionLevel = math.min(19, optionLevel + 1)
+            DrawOptionsItems()
         end
-        DrawOptionsItems()
     elseif gameInput == KEY_ENTER then
-        gameConfigLives = optionLives
-        gameConfigLevel = optionLevel
-        GameConfig_Save()
-        Action = Title_Action
+        if optionSel == 2 then
+            SaveState_Delete()
+            Action = Title_Action
+        else
+            gameConfigLives = optionLives
+            gameConfigLevel = optionLevel
+            GameConfig_Save()
+            Action = Title_Action
+        end
     elseif gameInput == KEY_ESCAPE then
         Action = Title_Action
     end

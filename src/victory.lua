@@ -16,10 +16,12 @@ end
 local function DoVictoryInit()
     System_Border(0)
 
+    Portal_Init()
     Level_Drawer()
     Robots_Drawer()
+    Portal_Drawer()
 
-    Video_Sprite(minerY * WIDTH + minerX, victoryMinerSprite, 0x0, 0x7)
+    Video_SpriteBlend(24 * WIDTH + 19 * 8, victoryMinerSprite, 0x7)
 
     victoryTimer = 50 * 9
 

@@ -294,7 +294,7 @@ end
 
 function Game_GameReset()
     gameLives = 3
-    gameLevel = 1
+    gameLevel = 0
     gameScore = 0
     gamePaused = 0
 

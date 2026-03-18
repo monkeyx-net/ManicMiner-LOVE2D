@@ -75,6 +75,10 @@ function Portal_Drawer()
     end
 end
 
+function Portal_GetSaveData()
+    return { ready = portalIsReady }
+end
+
 function Portal_Init()
     portalThis = portalData[gameLevel + 1]  -- 1-indexed
 

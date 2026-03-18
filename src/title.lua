@@ -187,15 +187,144 @@ local function DoTitleInit()
     Ticker = DoNothing
 end
 
-local function DoTitleResponder()
+-- ---------------------------------------------------------------------------
+-- Save state load prompt
+
+local function DoLoadPromptInit()
+    -- Keep title background; overlay a prompt in the HUD area (rows 144-191)
+    Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
+    -- Large text is 16 rows tall — space lines 16+ rows apart
+    Video_WriteLarge(148 * WIDTH, 4,
+        "\x01\x00\x02\x06SAVED GAME FOUND")
+    Video_WriteLarge(172 * WIDTH, 4,
+        "\x01\x00\x02\x07ENTER \x02\x04= LOAD  \x02\x07ESC \x02\x02= NEW GAME")
+    Ticker = DoNothing
+end
+
+local function DoLoadPromptResponder()
     if gameInput == KEY_ENTER then
+        local saveData = SaveState_Load()
+        if saveData then
+            gameVersion = System_IsKey(KEY_LSHIFT)
+            Robots_Version(gameVersion)
+            gameDemo = 0
+            Video_PixelFill(0, WIDTH * HEIGHT, 0)
+            Video_PixelFill(128 * WIDTH, 16 * WIDTH, 0x7)
+            Video_Write(137 * WIDTH + 3, "\x01\x07\x02\x01" .. "A I R")
+            Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
+            Video_WriteLarge(SCORE, 4, "\x01\x00\x02\x06" .. "High .....0        " .. "\x02\x0e" .. "Score .....0")
+            Game_StartWithSave(saveData)
+        else
+            Action = Title_Action
+        end
+    elseif gameInput == KEY_ESCAPE then
         gameVersion = System_IsKey(KEY_LSHIFT)
         Robots_Version(gameVersion)
-
         gameDemo = 0
         Action = DoStartGame
+    end
+end
+
+local function LoadPrompt_Action()
+    SetState(DoLoadPromptResponder, DoLoadPromptInit, Audio_Drawer, DoNothing)
+end
+
+-- ---------------------------------------------------------------------------
+-- Options menu
+
+local optionSel   = 0   -- 0 = lives row, 1 = level row
+local optionLives = 3
+local optionLevel = 0
+
+-- Large text is 16 rows tall; rows for options items:
+--   Row 48: LIVES         (48-63)
+--   Row 64: LEVEL number  (64-79)
+--   Row 80: level name    (80-95)
+
+local function DrawOptionsItems()
+    local livesInk = (optionSel == 0) and "\x06" or "\x07"
+    local levelInk = (optionSel == 1) and "\x06" or "\x07"
+
+    -- Clear and redraw both item rows + name row together
+    Video_PixelFill(48 * WIDTH, 48 * WIDTH, 0)
+
+    Video_WriteLarge(48 * WIDTH, 16,
+        "\x01\x00\x02" .. livesInk ..
+        string.format("LIVES:  %d", optionLives))
+
+    Video_WriteLarge(64 * WIDTH, 16,
+        "\x01\x00\x02" .. levelInk ..
+        string.format("LEVEL: %02d", optionLevel))
+
+    Video_WriteLarge(80 * WIDTH, 24,
+        "\x01\x00\x02\x05" .. levelData[optionLevel].name)
+end
+
+local function DoOptionsInit()
+    optionLives = gameConfigLives
+    optionLevel = gameConfigLevel
+    optionSel   = 0
+
+    Video_PixelFill(0, WIDTH * HEIGHT, 0)
+    Video_WriteLarge(16 * WIDTH, math.floor((WIDTH - 7 * 8) / 2),
+        "\x01\x00\x02\x06OPTIONS")
+
+    DrawOptionsItems()
+
+    -- Instructions: rows 112, 128, 160 (all 16 rows tall, non-overlapping)
+    Video_WriteLarge(112 * WIDTH, 4, "\x01\x00\x02\x03LEFT/RIGHT = CHANGE VALUE")
+    Video_WriteLarge(128 * WIDTH, 4, "\x01\x00\x02\x03UP/DOWN = SWITCH SETTING")
+    Video_WriteLarge(160 * WIDTH, 4, "\x01\x00\x02\x07ENTER = SAVE   ESC = CANCEL")
+
+    Ticker = DoNothing
+end
+
+local function DoOptionsResponder()
+    if gameInput == KEY_UP or gameInput == KEY_DOWN then
+        optionSel = 1 - optionSel
+        DrawOptionsItems()
+    elseif gameInput == KEY_LEFT then
+        if optionSel == 0 then
+            optionLives = math.max(1, optionLives - 1)
+        else
+            optionLevel = math.max(0, optionLevel - 1)
+        end
+        DrawOptionsItems()
+    elseif gameInput == KEY_RIGHT then
+        if optionSel == 0 then
+            optionLives = math.min(9, optionLives + 1)
+        else
+            optionLevel = math.min(19, optionLevel + 1)
+        end
+        DrawOptionsItems()
+    elseif gameInput == KEY_ENTER then
+        gameConfigLives = optionLives
+        gameConfigLevel = optionLevel
+        GameConfig_Save()
+        Action = Title_Action
+    elseif gameInput == KEY_ESCAPE then
+        Action = Title_Action
+    end
+end
+
+local function DoOptionsAction()
+    SetState(DoOptionsResponder, DoOptionsInit, DoNothing, DoNothing)
+end
+
+local function DoTitleResponder()
+    if gameInput == KEY_ENTER then
+        if SaveState_Exists() then
+            Action = LoadPrompt_Action
+        else
+            gameVersion = System_IsKey(KEY_LSHIFT)
+            Robots_Version(gameVersion)
+            gameDemo = 0
+            Action = DoStartGame
+        end
     elseif gameInput == KEY_S then
         Action = HiScores_Action
+    elseif gameInput == KEY_O then
+        Action = DoOptionsAction
     elseif gameInput == KEY_ESCAPE then
         DoQuit()
     end

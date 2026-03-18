@@ -867,6 +867,25 @@ local KONG_TILE2 = 401
 -- Set true when Kong has landed; portal can only open after this on Kong levels
 kongFallen = false
 
+function Level_GetSaveData()
+    local tt, tg, cd = {}, {}, {}
+    for i = 0, 511 do
+        tt[i + 1] = levelTileType[i]
+        tg[i + 1] = levelTileGfx[i]
+        cd[i + 1] = levelCollapseData[i]
+    end
+    return { tileType = tt, tileGfx = tg, collapseData = cd, itemCount = levelItemCount }
+end
+
+function Level_SetSaveData(d)
+    for i = 0, 511 do
+        levelTileType[i]    = d.tileType[i + 1]
+        levelTileGfx[i]     = d.tileGfx[i + 1]
+        levelCollapseData[i] = d.collapseData[i + 1]
+    end
+    levelItemCount = d.itemCount
+end
+
 function Level_Init()
     local lev = levelData[gameLevel]
     levelCurrent = lev

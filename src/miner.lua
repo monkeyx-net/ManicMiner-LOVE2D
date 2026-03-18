@@ -100,15 +100,18 @@ local function ForMinerTiles(fn)
     return false
 end
 
+-- T_VOID blocks movement just like T_SOLID (e.g. invisible barrier tiles in level 19)
+local function IsWall(t) return t == T_SOLID or t == T_VOID end
+
 -- Internal: check if tile position is solid (blocks horizontal movement)
 local function IsSolid(tile)
-    if Level_GetTileType(tile) == T_SOLID then
+    if IsWall(Level_GetTileType(tile)) then
         return true
     end
-    if Level_GetTileType(tile + 32) == T_SOLID then
+    if IsWall(Level_GetTileType(tile + 32)) then
         return true
     end
-    if Level_GetTileType(tile + 64) == T_SOLID then
+    if IsWall(Level_GetTileType(tile + 64)) then
         if minerAlign == 6 then
             return true
         end
@@ -149,7 +152,7 @@ function DoMinerTicker()
     if minerAir == 1 then
         local jump = jumpInfo[jumpStage + 1]  -- +1 for 1-indexed
         local tile = minerTile + jump.tile
-        if Level_GetTileType(tile) == T_SOLID or Level_GetTileType(tile + 1) == T_SOLID then
+        if IsWall(Level_GetTileType(tile)) or IsWall(Level_GetTileType(tile + 1)) then
             minerAir = 2
             minerMove = 0
             return
@@ -291,6 +294,27 @@ function DoMinerDrawer()
             Level_SetSpgTile(tile, B_MINER)
         end
     end)
+end
+
+function Miner_GetSaveData()
+    return {
+        x = minerX, y = minerY, tile = minerTile,
+        align = minerAlign, frame = minerFrame, dir = minerDir,
+        air = minerAir, jumpStage = jumpStage, move = minerMove, ink = minerInk,
+    }
+end
+
+function Miner_SetSaveData(d)
+    minerX     = d.x
+    minerY     = d.y
+    minerTile  = d.tile
+    minerAlign = d.align
+    minerFrame = d.frame
+    minerDir   = d.dir
+    minerAir   = d.air
+    jumpStage  = d.jumpStage
+    minerMove  = d.move
+    minerInk   = d.ink
 end
 
 function Miner_Init()

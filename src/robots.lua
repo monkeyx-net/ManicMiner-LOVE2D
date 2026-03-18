@@ -390,7 +390,7 @@ local robotStartData = {
     },
     -- level 19 (TWENTY)
     {
-        {x=7,  y=13, min=56,  max=176, speed=8, move="right", gfx=24, ink=0x6, nframes=3, frame=0, tile=0},
+        {x=7,  y=13, min=56,  max=176, speed=7, move="right", gfx=24, ink=0x6, nframes=3, frame=0, tile=0},
         {x=24, y=6,  min=40,  max=103, speed=1, move="down",  gfx=15, ink=0x7, nframes=3, frame=0, tile=0},
     },
 }

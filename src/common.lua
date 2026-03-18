@@ -53,11 +53,17 @@ KEY_MUTE   = 18
 KEY_ELSE   = 19
 KEY_NONE   = 20
 KEY_S      = 21
+KEY_U      = 22
+KEY_O      = 23
+KEY_UP     = 24
+KEY_DOWN   = 25
 
 -- Key mapping: key code -> Love2D key name
 keyMap = {
     [KEY_LEFT]   = "left",
     [KEY_RIGHT]  = "right",
+    [KEY_UP]     = "up",
+    [KEY_DOWN]   = "down",
     [KEY_JUMP]   = "space",
     [KEY_ENTER]  = "return",
     [KEY_LSHIFT] = "lshift",

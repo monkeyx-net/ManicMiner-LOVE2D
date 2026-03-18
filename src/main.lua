@@ -24,6 +24,8 @@ function love.load()
     require("victory")
     require("title")
     require("loader")
+    require("savestate")
+    GameConfig_Load()
 
     -- Window title and icon
     love.window.setTitle("Manic Miner")
@@ -129,7 +131,13 @@ function love.keypressed(key, scancode, isrepeat)
     elseif key == "7" then mapped = KEY_7
     elseif key == "8" then mapped = KEY_8
     elseif key == "9" then mapped = KEY_9
-    elseif key == "s" then mapped = KEY_S
+    elseif key == "s"    then mapped = KEY_S
+    elseif key == "u"    then mapped = KEY_U
+    elseif key == "o"    then mapped = KEY_O
+    elseif key == "up"   then mapped = KEY_UP
+    elseif key == "down" then mapped = KEY_DOWN
+    elseif key == "left" then mapped = KEY_LEFT
+    elseif key == "right" then mapped = KEY_RIGHT
     else
         mapped = KEY_ELSE
     end

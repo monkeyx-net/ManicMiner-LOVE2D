@@ -44,6 +44,7 @@ end
 
 local gameFrame = 0
 local gameTimer = {}
+local pendingSave = nil  -- save data to apply at end of DoGameInit
 
 -- Globals read by other modules
 gamePaused  = 0
@@ -61,6 +62,15 @@ Spg_Drawer     = DoNothing
 Miner_Ticker   = DoNothing
 Miner_Drawer   = DoNothing
 Portal_Ticker  = DoNothing
+
+function Game_GetScores()
+    return gameScore, gameHiScore
+end
+
+function Game_SetScores(score, hiscore)
+    gameScore   = score
+    gameHiScore = hiscore
+end
 
 function Game_CheckHighScore()
     if gameScore > gameHiScore then
@@ -266,12 +276,48 @@ local function DoGameInit()
     Timer_Set(gameTimer, 12, TICKRATE)
     gameFrame = 1  -- immediate draw
 
+    -- Apply pending save state (overrides fresh init values)
+    if pendingSave then
+        local ps = pendingSave
+        pendingSave = nil
+
+        gameScore   = ps.score
+        gameHiScore = ps.hiscore
+        gameLives   = ps.lives
+        kongFallen  = ps.kongfallen
+
+        -- Restore air and redraw bar at correct level
+        gameAir    = ps.air
+        gameAirOld = math.floor((gameAir + 7) / 8)
+        for x = gameAirOld, 223 do
+            Video_AirBar(AIR + x, 0x7)
+        end
+        Game_DrawAir = DoNothing
+
+        Level_SetSaveData(ps.level_data)
+        Miner_SetSaveData(ps.miner)
+        if ps.portal.ready == 1 then
+            Portal_Ready()
+        end
+
+        Game_DrawScore()
+        Game_DrawHiScore()
+        Game_DrawLives()
+    end
+
     if gamePaused == 0 then
         Audio_Play(gameMusic)
         Ticker = DoGameTicker
     else
         Ticker = DoNothing
     end
+end
+
+function Game_StartWithSave(saveData)
+    pendingSave = saveData
+    Game_GameReset()
+    gameLevel = saveData.level  -- restore after Game_GameReset resets it to 0
+    Game_Action()
 end
 
 local function DoGameDemoResponder()
@@ -287,14 +333,16 @@ local function DoGameResponder()
         Game_Pause(0)
     elseif gameInput == KEY_ESCAPE then
         Action = Title_Action
+    elseif gameInput == KEY_U then
+        SaveState_Save()
     else
         Cheat_Responder()
     end
 end
 
 function Game_GameReset()
-    gameLives = 3
-    gameLevel = 0
+    gameLives = gameConfigLives
+    gameLevel = gameConfigLevel
     gameScore = 0
     gamePaused = 0
 
@@ -304,9 +352,7 @@ function Game_GameReset()
     Miner_SetSeq(7, 20)
     Game_DrawLives()
 
-    if cheatEnabled == 1 then
-        Gameover_DrawCheat()
-    end
+    Cheat_Reset()
 
     if gameDemo == 0 then
         Miner_Ticker = DoMinerTicker

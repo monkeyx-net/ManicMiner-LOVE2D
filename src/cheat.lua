@@ -55,3 +55,9 @@ local function DoCheatDisabled()
 end
 
 Cheat_Responder = DoCheatDisabled  -- global function variable
+
+function Cheat_Reset()
+    cheatEnabled = 0
+    cheatPos = 0
+    Cheat_Responder = DoCheatDisabled
+end

@@ -3,7 +3,7 @@
 -- ---------------------------------------------------------------------------
 -- Game config (starting lives / level for new games)
 
-local CONFIG_FILE = "ManicMiner_gameconfig.dat"
+local CONFIG_FILE = "gameconfig.dat"
 
 gameConfigLives = 3   -- global: starting lives for new games (1-9)
 gameConfigLevel = 0   -- global: starting level for new games (0-19)
@@ -29,7 +29,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Save states
 
-local SAVE_FILE    = "ManicMiner_savestate.dat"
+local SAVE_FILE    = "savestate.dat"
 local SAVE_VERSION = 1
 
 function SaveState_Exists()

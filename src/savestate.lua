@@ -29,7 +29,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Save states
 
-local SAVE_FILE    = "Manic_Miner_savestate.dat"
+local SAVE_FILE    = "ManicMiner_savestate.dat"
 local SAVE_VERSION = 1
 
 function SaveState_Exists()

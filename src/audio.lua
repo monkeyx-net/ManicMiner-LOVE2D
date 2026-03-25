@@ -1,5 +1,19 @@
 -- audio.lua: square wave synthesis matching the C original
 
+-- Localize hot-path globals as upvalues for LuaJIT performance
+local band, rshift, bor = band, rshift, bor
+local mfloor = math.floor
+
+-- SFX channel state constants (avoids string comparison in hot loop)
+local SFX_OFF      = 0
+local SFX_PLAY     = 1
+local SFX_AIR      = 2
+local SFX_VICTORY  = 3
+local SFX_MINER    = 4
+local SFX_MINEROFF = 5
+
+local INV32768 = 1 / 32768   -- precomputed reciprocal; multiply faster than divide
+
 local VOLUME      = 32768 / 4
 local MUSICVOLUME = VOLUME / 8
 local SFXVOLUME   = VOLUME / 4
@@ -86,11 +100,11 @@ local sfxPitch = {
 -- Audio channel state
 local function newChannel(lv, rv)
     return {
-        left  = {lv or 0, -(lv or 0), 0},
-        right = {rv or 0, -(rv or 0), 0},
+        left  = {lv or 0, -(lv or 0)},
+        right = {rv or 0, -(rv or 0)},
         phase = 0,
         frequency = 0,
-        active = false   -- false = DoNothing, true = DoPhase
+        active = false
     }
 end
 
@@ -109,8 +123,6 @@ local musicChannel = {
 
 local function ChannelOff(ch)
     ch.active = false
-    ch.left[3] = 0
-    ch.right[3] = 0
 end
 
 -- SFX channel info
@@ -122,8 +134,8 @@ local function newSfx(ch)
         length   = 1,
         channel  = ch,
         clock    = 0,
-        state    = "off",    -- "off", "on", "play", "air", "victory", "miner"
-        doPlay   = "play",
+        state    = SFX_OFF,
+        doPlay   = SFX_PLAY,
     }
 end
 
@@ -146,7 +158,8 @@ local sfxClock = 0
 audioMusicPlaying = MUS_STOP
 
 -- Piano key draw queue (for title screen animation)
-local drawQueue = {}
+local drawQueue  = {}
+local drawQueueN = 0
 
 -- Key position table (for piano keys, indexed by note number 0..95)
 local keyPos = {
@@ -182,41 +195,30 @@ local function DrawListAdd(note, state)
     local kp = keyPos[note + 1]
     local ntype = noteTypes[note % 12 + 1]
     local attr  = keyColors[bor(state, kp.t) + 1]
-    table.insert(drawQueue, {pos = KEYBOARD + kp.pos, noteType = ntype, attr = attr})
+    drawQueueN = drawQueueN + 1
+    drawQueue[drawQueueN] = {pos = KEYBOARD + kp.pos, noteType = ntype, attr = attr}
 end
 
 function Audio_Drawer()
-    for _, entry in ipairs(drawQueue) do
+    for i = 1, drawQueueN do
+        local entry = drawQueue[i]
         Video_PianoKey(entry.pos, entry.noteType, entry.attr)
     end
-    drawQueue = {}
+    drawQueueN = 0
 end
 
 -- Channel helper functions
 local function channelStereo(ch, left, right)
-    left  = math.floor(SFXVOLUME * left  / 256)
-    right = math.floor(SFXVOLUME * right / 256)
+    left  = mfloor(SFXVOLUME * left  / 256)
+    right = mfloor(SFXVOLUME * right / 256)
     ch.left[1]  =  left;  ch.left[2]  = -left
     ch.right[1] =  right; ch.right[2] = -right
 end
 
+local PANTABLE_MAX = #panTable - 1
 local function channelPan(ch, pan)
-    pan = math.max(0, math.min(#panTable - 1, pan))
+    if pan < 0 then pan = 0 elseif pan > PANTABLE_MAX then pan = PANTABLE_MAX end
     channelStereo(ch, panTable[pan + 1], 256 - panTable[pan + 1])
-end
-
--- Generate one audio sample pair (left, right)
--- Called SAMPLERATE times per second
-local function channelOutput(ch)
-    if not ch.active then
-        ch.left[3] = 0; ch.right[3] = 0
-        return
-    end
-    -- 32-bit phase accumulator, top bit determines square wave state
-    ch.phase = band(ch.phase + ch.frequency, 0xFFFFFFFF)
-    local idx = band(rshift(ch.phase, 31), 1) + 1
-    ch.left[3]  = ch.left[idx]
-    ch.right[3] = ch.right[idx]
 end
 
 -- Love2D QueueableSource for audio output
@@ -240,33 +242,41 @@ local samplesPerTick = SAMPLERATE / TICKRATE  -- ~367.5
 function Audio_Update(dt)
     if not audioSource then return end
 
-    -- Generate enough audio to keep the queue full
     local buffered = audioSource:getFreeBufferCount()
-    -- Each buffer covers ~1/8 second
+    local buf      = audioBuf
+    local setSample = buf.setSample   -- cache method; avoids metatable lookup per sample
+    local ac       = audioChannel
+    local nch      = musicChannelsCount
+    -- Reuse pre-allocated buffer (queue() copies the data, so reuse is safe)
     for b = 1, buffered do
-        -- Tick music/sfx events once per ~audioSampleCounter cycle
-        -- Reuse pre-allocated buffer (queue() copies the data, so reuse is safe)
         for i = 0, audioBufSize - 1 do
             audioSampleCounter = audioSampleCounter + 1
             if audioSampleCounter >= samplesPerTick then
                 audioSampleCounter = audioSampleCounter - samplesPerTick
                 Audio_MusicEvent()
                 Audio_SfxEvent()
+                nch = musicChannelsCount  -- refresh in case a state change occurred
             end
 
             local L = 0
             local R = 0
-            for c = 1, musicChannelsCount do
-                channelOutput(audioChannel[c])
-                L = L + audioChannel[c].left[3]
-                R = R + audioChannel[c].right[3]
+            -- Inlined channelOutput: eliminates per-channel function call overhead
+            for c = 1, nch do
+                local ch = ac[c]
+                if ch.active then
+                    local phase = band(ch.phase + ch.frequency, 0xFFFFFFFF)
+                    ch.phase = phase
+                    local idx = band(rshift(phase, 31), 1) + 1
+                    L = L + ch.left[idx]
+                    R = R + ch.right[idx]
+                end
             end
-            L = math.max(-32768, math.min(32767, L))
-            R = math.max(-32768, math.min(32767, R))
-            audioBuf:setSample(i * 2,     L / 32768)
-            audioBuf:setSample(i * 2 + 1, R / 32768)
+            if L > 32767 then L = 32767 elseif L < -32768 then L = -32768 end
+            if R > 32767 then R = 32767 elseif R < -32768 then R = -32768 end
+            setSample(buf, i * 2,     L * INV32768)
+            setSample(buf, i * 2 + 1, R * INV32768)
         end
-        audioSource:queue(audioBuf)
+        audioSource:queue(buf)
     end
     if not audioSource:isPlaying() then
         audioSource:play()
@@ -275,10 +285,8 @@ end
 
 -- SFX helpers
 local function sfxOff(sfx)
-    sfx.state = "off"
+    sfx.state = SFX_OFF
     sfx.channel.active = false
-    sfx.channel.left[3] = 0
-    sfx.channel.right[3] = 0
 end
 
 local function sfxPlay(sfx)
@@ -303,20 +311,16 @@ local function sfxVictory(sfx)
         if sfx.data > 0 then
             sfx.pitchIdx = 1
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
-            sfx.state = "victory"
+            sfx.state = SFX_VICTORY
             sfx.channel.active = true
         end
     end
 end
 
 local function sfxMiner(sfx)
-    sfx.channel.active = true       -- activate channel
-    sfx.clock = sfx.clock + sfx.length  -- schedule turn-off
-    sfx.state = "mineroff"          -- next clock fire = turn off
-end
-
-local function sfxMinerOff(sfx)
-    sfxOff(sfx)
+    sfx.channel.active = true
+    sfx.clock = sfx.clock + sfx.length
+    sfx.state = SFX_MINEROFF
 end
 
 function Audio_MinerSfx(note, length)
@@ -325,7 +329,7 @@ function Audio_MinerSfx(note, length)
     sfx.clock = sfxClock
     channelPan(sfx.channel, minerX - 8)
     sfx.length = length
-    sfx.state = "miner"
+    sfx.state = SFX_MINER
     sfx.channel.active = true
 end
 
@@ -340,26 +344,26 @@ function Audio_Sfx(sfx_id)
             sfx.pitch = sfxPitch[SFX_AIR + 1]
             sfx.pitchIdx = math.max(1, 225 - (gameAirOld or 224))
             sfx.data = gameAirOld or 224
-            sfx.state = "air"
+            sfx.state = SFX_AIR
         elseif sfx_id == SFX_VICTORY then
             sfx.length = 1
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
             sfx.pitchIdx = 1
             sfx.data = 50
-            channelStereo(sfx.channel, 256, 256)  -- was -256: inverted R = silence on mono
-            sfx.state = "victory"
+            channelStereo(sfx.channel, 256, 256)
+            sfx.state = SFX_VICTORY
         elseif sfx_id == SFX_DIE then
             sfx.length = 1
             sfx.pitch = sfxPitch[SFX_DIE + 1]
             sfx.pitchIdx = 1
             channelPan(sfx.channel, (minerX or 128) - 8)
-            sfx.state = "play"
+            sfx.state = SFX_PLAY
         elseif sfx_id == SFX_GAMEOVER then
             sfx.length = 2
             sfx.pitch = sfxPitch[SFX_GAMEOVER + 1]
             sfx.pitchIdx = 1
-            channelStereo(sfx.channel, 256, 256)  -- was -256: inverted R = silence on mono
-            sfx.state = "play"
+            channelStereo(sfx.channel, 256, 256)
+            sfx.state = SFX_PLAY
         end
         sfx.channel.active = true
         sfx.channel.frequency = frequencyTable[sfx.pitch[sfx.pitchIdx] + 1] or 0
@@ -369,7 +373,7 @@ function Audio_Sfx(sfx_id)
         sfx.pitch = sfxPitch[SFX_KONG + 1]
         sfx.pitchIdx = 1
         channelPan(sfx.channel, 112)
-        sfx.state = "play"
+        sfx.state = SFX_PLAY
         sfx.clock = sfxClock
         sfx.channel.active = true
         sfx.channel.frequency = frequencyTable[sfx.pitch[sfx.pitchIdx] + 1] or 0
@@ -564,8 +568,6 @@ local curMusicIdx = 1
 local function MusicReset()
     for i = 1, NMUSIC do
         musicChannel[i].active = false
-        musicChannel[i].left[3] = 0
-        musicChannel[i].right[3] = 0
     end
     curMusicScore = musicScore[musicIndex]
     curMusicIdx = 1
@@ -640,16 +642,16 @@ function Audio_SfxEvent()
         local sfx = sfxInfo[i]
         if sfx.clock == sfxClock then
             local st = sfx.state
-            if st == "play" then
+            if st == SFX_PLAY then
                 sfxPlay(sfx)
-            elseif st == "air" then
+            elseif st == SFX_AIR then
                 sfxAir(sfx)
-            elseif st == "victory" then
+            elseif st == SFX_VICTORY then
                 sfxVictory(sfx)
-            elseif st == "miner" then
+            elseif st == SFX_MINER then
                 sfxMiner(sfx)
-            elseif st == "mineroff" then
-                sfxMinerOff(sfx)
+            elseif st == SFX_MINEROFF then
+                sfxOff(sfx)
             end
         end
     end
@@ -670,7 +672,7 @@ function Audio_Music(music, playing)
     MusicReset()
     for i = 1, NSFX do sfxOff(sfxInfo[i]) end
     Audio_Play(playing)
-    drawQueue = {}
+    drawQueueN = 0
 end
 
 function Audio_Shutdown()

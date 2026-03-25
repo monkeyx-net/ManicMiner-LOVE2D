@@ -1,5 +1,9 @@
 -- video.lua: pixel-level rendering, matching the C original
 
+-- Localize hot-path globals as upvalues for LuaJIT performance
+local band, rshift, bor, lshift = band, rshift, bor, lshift
+local mfloor = math.floor
+
 -- The pixel buffer (collision flags): B_LEVEL=1, B_ROBOT=2, B_MINER=4
 videoPixel = {}
 for i = 0, WIDTH * HEIGHT - 1 do
@@ -12,6 +16,23 @@ screenImage = nil  -- global so main.lua can draw it
 
 -- Flag: image needs refresh
 local imageDirty = false
+
+-- Cached imgData:setPixel method (set in Video_Init; avoids metatable lookup per call)
+local setPixel
+
+-- Flat per-channel palette arrays (avoids inner table dereference on every pixel write)
+local paletteR = {}
+local paletteG = {}
+local paletteB = {}
+do
+    for i, c in ipairs(palette) do
+        paletteR[i] = c[1]; paletteG[i] = c[2]; paletteB[i] = c[3]
+    end
+end
+
+-- Precomputed sprite flag ORs (constants, computed once)
+local ROBOT_FLAG = bor(B_ROBOT, B_LEVEL)   -- 3
+local MINER_FLAG = bor(B_MINER, B_LEVEL)   -- 5
 
 -- Pre-computed pixel offsets within a tile for point 0..63
 -- offset = (row * WIDTH) + col  where row = point>>3, col = point&7
@@ -38,16 +59,18 @@ local spriteDirtyCount = 0
 
 function Video_Init()
     imgData = love.image.newImageData(WIDTH, HEIGHT)
+    setPixel = imgData.setPixel   -- cache once; reused by all inlined pixel writers
     screenImage = love.graphics.newImage(imgData)
     screenImage:setFilter("nearest", "nearest")
 end
 
--- Set a single pixel color by palette index
+-- Set a single pixel color by palette index.
+-- Used by infrequent paths (text, piano keys). Hot paths inline this directly.
 function System_SetPixel(pos, index)
     local x = pixelX[pos]
     if not x then return end
-    local c = palette[index + 1]
-    imgData:setPixel(x, pixelY[pos], c[1], c[2], c[3], 1)
+    local ci = index + 1
+    setPixel(imgData, x, pixelY[pos], paletteR[ci], paletteG[ci], paletteB[ci], 1)
     imageDirty = true
 end
 
@@ -91,42 +114,55 @@ end
 function Video_ClearSprites()
     local bg   = levelBG or 0
     local mask = bor(B_ROBOT, B_MINER)
+    local ci   = bg + 1
+    local r, g, b = paletteR[ci], paletteG[ci], paletteB[ci]
+    local px, py = pixelX, pixelY
     for i = 1, spriteDirtyCount do
         local p = spriteDirtyList[i]
         if band(videoPixel[p], mask) ~= 0 then
             videoPixel[p] = 0
-            System_SetPixel(p, bg)
+            setPixel(imgData, px[p], py[p], r, g, b, 1)
         end
     end
+    imageDirty = spriteDirtyCount > 0
     spriteDirtyCount = 0
 end
 
 -- Fill a region of pixels with a solid color (clears collision flags too)
 function Video_PixelFill(pixel, size, ink)
+    local ci = ink + 1
+    local r, g, b = paletteR[ci], paletteG[ci], paletteB[ci]
+    local px, py = pixelX, pixelY
     for i = 0, size - 1 do
-        videoPixel[pixel + i] = 0
-        System_SetPixel(pixel + i, ink)
+        local p = pixel + i
+        videoPixel[p] = 0
+        setPixel(imgData, px[p], py[p], r, g, b, 1)
     end
+    imageDirty = true
 end
 
 -- Draw an 8x8 tile at pixel position pos (top-left)
 -- gfx: array [1..8] of bytes (each byte = one row, bit7=left)
 -- rows: number of rows to draw (usually 8)
 function Video_Tile(pos, gfx, paper, ink, rows)
+    local pr, pg, pb = paletteR[paper+1], paletteG[paper+1], paletteB[paper+1]
+    local ir, ig, ib = paletteR[ink+1],   paletteG[ink+1],   paletteB[ink+1]
+    local px, py = pixelX, pixelY
     for row = 0, rows - 1 do
         local pixel = pos + row * WIDTH
         local byte = gfx[row + 1] or 0
         for bit = 0, 7 do
-            local px = pixel + (7 - bit)
+            local p = pixel + (7 - bit)
             local v = band(rshift(byte, bit), 1)
-            videoPixel[px] = v * B_LEVEL
+            videoPixel[p] = v * B_LEVEL
             if v == 0 then
-                System_SetPixel(px, paper)
+                setPixel(imgData, px[p], py[p], pr, pg, pb, 1)
             else
-                System_SetPixel(px, ink)
+                setPixel(imgData, px[p], py[p], ir, ig, ib, 1)
             end
         end
     end
+    imageDirty = true
     return pos + rows * WIDTH
 end
 
@@ -141,36 +177,41 @@ end
 -- Set paper (background) color for all paper pixels in a tile
 function Video_TilePaper(tile, paper)
     local pixel = TILE2PIXEL(tile)
+    local r, g, b = paletteR[paper+1], paletteG[paper+1], paletteB[paper+1]
+    local px, py = pixelX, pixelY
     for point = 0, 63 do
         local pos = pixel + tilePixelOffset[point]
         if band(videoPixel[pos], B_LEVEL) == 0 then
-            System_SetPixel(pos, paper)
+            setPixel(imgData, px[pos], py[pos], r, g, b, 1)
         end
     end
+    imageDirty = true
 end
 
 -- Set ink (foreground) color for all ink pixels in a tile
 function Video_TileInk(tile, ink)
     local pixel = TILE2PIXEL(tile)
+    local r, g, b = paletteR[ink+1], paletteG[ink+1], paletteB[ink+1]
+    local px, py = pixelX, pixelY
     for point = 0, 63 do
         local pos = pixel + tilePixelOffset[point]
         if band(videoPixel[pos], B_LEVEL) ~= 0 then
-            System_SetPixel(pos, ink)
+            setPixel(imgData, px[pos], py[pos], r, g, b, 1)
         end
     end
+    imageDirty = true
 end
 
 -- Fill all paper (non-ink) pixels in the game area with a single color.
 -- Flat single-pass loop avoids tile/point indirection, mod/div, and
 -- per-pixel function-call chains — much cheaper on low-spec devices.
 function Video_LevelPaperFill(paper)
-    local c  = palette[paper + 1]
-    local pr, pg, pb = c[1], c[2], c[3]
+    local pr, pg, pb = paletteR[paper+1], paletteG[paper+1], paletteB[paper+1]
     local pos = 0
     for y = 0, 127 do
         for x = 0, WIDTH - 1 do
             if band(videoPixel[pos], B_LEVEL) == 0 then
-                imgData:setPixel(x, y, pr, pg, pb, 1)
+                setPixel(imgData, x, y, pr, pg, pb, 1)
             end
             pos = pos + 1
         end
@@ -180,13 +221,12 @@ end
 
 -- Fill all ink pixels in the game area with a single color.
 function Video_LevelInkFill(ink)
-    local c  = palette[ink + 1]
-    local ir, ig, ib = c[1], c[2], c[3]
+    local ir, ig, ib = paletteR[ink+1], paletteG[ink+1], paletteB[ink+1]
     local pos = 0
     for y = 0, 127 do
         for x = 0, WIDTH - 1 do
             if band(videoPixel[pos], B_LEVEL) ~= 0 then
-                imgData:setPixel(x, y, ir, ig, ib, 1)
+                setPixel(imgData, x, y, ir, ig, ib, 1)
             end
             pos = pos + 1
         end
@@ -198,11 +238,10 @@ end
 -- No videoPixel read, no branch per pixel — fastest possible clear.
 -- Use this when old sprite ink residue (B_LEVEL=1) must also be wiped.
 function Video_GameAreaFill(color)
-    local c = palette[color + 1]
-    local r, g, b = c[1], c[2], c[3]
+    local r, g, b = paletteR[color+1], paletteG[color+1], paletteB[color+1]
     for y = 0, 127 do
         for x = 0, WIDTH - 1 do
-            imgData:setPixel(x, y, r, g, b, 1)
+            setPixel(imgData, x, y, r, g, b, 1)
         end
     end
     imageDirty = true
@@ -211,17 +250,15 @@ end
 -- Fill paper and ink pixels in a single pass (used by trans.lua).
 -- Halves pixel iterations vs calling Paper + Ink fills separately.
 function Video_LevelFill(paper, ink)
-    local cp = palette[paper + 1]
-    local ci = palette[ink   + 1]
-    local pr, pg, pb = cp[1], cp[2], cp[3]
-    local ir, ig, ib = ci[1], ci[2], ci[3]
+    local pr, pg, pb = paletteR[paper+1], paletteG[paper+1], paletteB[paper+1]
+    local ir, ig, ib = paletteR[ink+1],   paletteG[ink+1],   paletteB[ink+1]
     local pos = 0
     for y = 0, 127 do
         for x = 0, WIDTH - 1 do
             if band(videoPixel[pos], B_LEVEL) == 0 then
-                imgData:setPixel(x, y, pr, pg, pb, 1)
+                setPixel(imgData, x, y, pr, pg, pb, 1)
             else
-                imgData:setPixel(x, y, ir, ig, ib, 1)
+                setPixel(imgData, x, y, ir, ig, ib, 1)
             end
             pos = pos + 1
         end
@@ -232,34 +269,40 @@ end
 -- Draw a 16x16 sprite (u16[16]) at pixel position pos (top-left)
 -- Bits drawn right-to-left (pos+15 = bit0, pos+0 = bit15)
 function Video_Sprite(pos, gfx, paper, ink)
+    local pr, pg, pb = paletteR[paper+1], paletteG[paper+1], paletteB[paper+1]
+    local ir, ig, ib = paletteR[ink+1],   paletteG[ink+1],   paletteB[ink+1]
+    local px, py = pixelX, pixelY
     local startpos = pos + 15
     for row = 0, 15 do
         local pixel = startpos + row * WIDTH
         local word = gfx[row + 1] or 0
         for bit = 0, 15 do
             local v = band(word, 1)
-            videoPixel[pixel] = v  -- 0 or B_LEVEL(1)
+            videoPixel[pixel] = v
             if v == 0 then
-                System_SetPixel(pixel, paper)
+                setPixel(imgData, px[pixel], py[pixel], pr, pg, pb, 1)
             else
-                System_SetPixel(pixel, ink)
+                setPixel(imgData, px[pixel], py[pixel], ir, ig, ib, 1)
             end
             pixel = pixel - 1
             word = rshift(word, 1)
         end
     end
+    imageDirty = true
 end
 
 -- Draw a 16x16 sprite blended (only ink pixels, marks as B_ROBOT)
 function Video_SpriteBlend(pos, gfx, ink)
+    local ir, ig, ib = paletteR[ink+1], paletteG[ink+1], paletteB[ink+1]
+    local px, py = pixelX, pixelY
     local startpos = pos + 15
     for row = 0, 15 do
         local pixel = startpos + row * WIDTH
         local word = gfx[row + 1] or 0
         for bit = 0, 15 do
             if band(word, 1) ~= 0 then
-                videoPixel[pixel] = bor(videoPixel[pixel], bor(B_ROBOT, 1))
-                System_SetPixel(pixel, ink)
+                videoPixel[pixel] = bor(videoPixel[pixel], ROBOT_FLAG)
+                setPixel(imgData, px[pixel], py[pixel], ir, ig, ib, 1)
                 spriteDirtyCount = spriteDirtyCount + 1
                 spriteDirtyList[spriteDirtyCount] = pixel
             end
@@ -267,11 +310,14 @@ function Video_SpriteBlend(pos, gfx, ink)
             word = rshift(word, 1)
         end
     end
+    imageDirty = true
 end
 
 -- Draw the miner sprite (left-to-right, collision detect with robots)
 -- Returns true if collision with robot detected (die)
 function Video_Miner(pos, gfx, ink)
+    local ir, ig, ib = paletteR[ink+1], paletteG[ink+1], paletteB[ink+1]
+    local px, py = pixelX, pixelY
     local die = false
     for row = 0, 15 do
         local pixel = pos + row * WIDTH
@@ -281,8 +327,8 @@ function Video_Miner(pos, gfx, ink)
                 if band(videoPixel[pixel], B_ROBOT) ~= 0 then
                     die = true
                 end
-                videoPixel[pixel] = bor(videoPixel[pixel], bor(B_MINER, 1))
-                System_SetPixel(pixel, ink)
+                videoPixel[pixel] = bor(videoPixel[pixel], MINER_FLAG)
+                setPixel(imgData, px[pixel], py[pixel], ir, ig, ib, 1)
                 spriteDirtyCount = spriteDirtyCount + 1
                 spriteDirtyList[spriteDirtyCount] = pixel
             end
@@ -290,15 +336,19 @@ function Video_Miner(pos, gfx, ink)
             word = rshift(word, 1)
         end
     end
+    imageDirty = true
     return die
 end
 
 -- Air bar: draw 4 vertical pixels (a 1x4 vertical bar segment)
 function Video_AirBar(pixel, ink)
-    System_SetPixel(pixel, ink)
-    System_SetPixel(pixel + WIDTH, ink)
-    System_SetPixel(pixel + WIDTH * 2, ink)
-    System_SetPixel(pixel + WIDTH * 3, ink)
+    local r, g, b = paletteR[ink+1], paletteG[ink+1], paletteB[ink+1]
+    local px, py = pixelX, pixelY
+    setPixel(imgData, px[pixel],           py[pixel],           r, g, b, 1)
+    setPixel(imgData, px[pixel + WIDTH],   py[pixel + WIDTH],   r, g, b, 1)
+    setPixel(imgData, px[pixel + WIDTH*2], py[pixel + WIDTH*2], r, g, b, 1)
+    setPixel(imgData, px[pixel + WIDTH*3], py[pixel + WIDTH*3], r, g, b, 1)
+    imageDirty = true
 end
 
 -- Small charset: 96 chars (ASCII 32..127), variable width

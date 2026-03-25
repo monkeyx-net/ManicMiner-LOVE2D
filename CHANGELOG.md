@@ -2,6 +2,13 @@
 
 All notable changes to Manic Miner LÖVE2D are documented here.
 
+## [0.9.3] - 2026-03-25
+
+### Minor update
+ - Added original zlib license
+ - video and audio performance tweaks
+
+
 ## [0.9.2] - 2026-03-18
 
 ### Fixed

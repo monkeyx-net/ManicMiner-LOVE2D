@@ -434,7 +434,7 @@ DoRobotRight = function()
     curRobot.subpix = curRobot.subpix - 8
 
     curRobot.frame = curRobot.frame + 1
-    if curRobot.frame < 3 then return end  -- note: post-increment means check <3 (was <3 before increment)
+    if curRobot.frame < 3 then return end
 
     if curRobot.x < curRobot.max then
         curRobot.x = curRobot.x + 8

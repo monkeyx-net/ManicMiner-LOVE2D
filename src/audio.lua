@@ -7,8 +7,8 @@ local mfloor = math.floor
 -- SFX channel state constants (avoids string comparison in hot loop)
 local SFX_OFF      = 0
 local SFX_PLAY     = 1
-local SFX_AIR      = 2
-local SFX_VICTORY  = 3
+local SFXST_AIR     = 2   -- internal state: playing air SFX
+local SFXST_VICTORY = 3   -- internal state: playing victory SFX
 local SFX_MINER    = 4
 local SFX_MINEROFF = 5
 
@@ -311,7 +311,7 @@ local function sfxVictory(sfx)
         if sfx.data > 0 then
             sfx.pitchIdx = 1
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
-            sfx.state = SFX_VICTORY
+            sfx.state = SFXST_VICTORY
             sfx.channel.active = true
         end
     end
@@ -344,14 +344,14 @@ function Audio_Sfx(sfx_id)
             sfx.pitch = sfxPitch[SFX_AIR + 1]
             sfx.pitchIdx = math.max(1, 225 - (gameAirOld or 224))
             sfx.data = gameAirOld or 224
-            sfx.state = SFX_AIR
+            sfx.state = SFXST_AIR
         elseif sfx_id == SFX_VICTORY then
             sfx.length = 1
             sfx.pitch = sfxPitch[SFX_VICTORY + 1]
             sfx.pitchIdx = 1
             sfx.data = 50
-            channelStereo(sfx.channel, 256, 256)
-            sfx.state = SFX_VICTORY
+            channelStereo(sfx.channel, 256, -256)
+            sfx.state = SFXST_VICTORY
         elseif sfx_id == SFX_DIE then
             sfx.length = 1
             sfx.pitch = sfxPitch[SFX_DIE + 1]
@@ -362,7 +362,7 @@ function Audio_Sfx(sfx_id)
             sfx.length = 2
             sfx.pitch = sfxPitch[SFX_GAMEOVER + 1]
             sfx.pitchIdx = 1
-            channelStereo(sfx.channel, 256, 256)
+            channelStereo(sfx.channel, 256, -256)
             sfx.state = SFX_PLAY
         end
         sfx.channel.active = true
@@ -644,9 +644,9 @@ function Audio_SfxEvent()
             local st = sfx.state
             if st == SFX_PLAY then
                 sfxPlay(sfx)
-            elseif st == SFX_AIR then
+            elseif st == SFXST_AIR then
                 sfxAir(sfx)
-            elseif st == SFX_VICTORY then
+            elseif st == SFXST_VICTORY then
                 sfxVictory(sfx)
             elseif st == SFX_MINER then
                 sfxMiner(sfx)
@@ -656,6 +656,10 @@ function Audio_SfxEvent()
         end
     end
     sfxClock = sfxClock + 1
+end
+
+function Audio_StopAllSfx()
+    for i = 1, NSFX do sfxOff(sfxInfo[i]) end
 end
 
 function Audio_Play(playing)

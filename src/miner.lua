@@ -147,6 +147,7 @@ local function MoveLeftRight()
 end
 
 function DoMinerTicker()
+    Replay_Tick()   -- record or load this tick's input
     local conveyDir = C_NONE
 
     if minerAir == 1 then

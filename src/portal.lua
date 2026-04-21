@@ -43,6 +43,11 @@ local portalData = {
     {x=19, y=5,  gfx={65535,63519,57351,49155,50115,34785,34785,34785,50115,49539,57735,45453,33153,33153,33153,65535}, colour={0xf,0xc}},
 }
 
+local swordFishGfx = {
+    672, 1347, 8164, 29695, 62200, 7999, 65508, 16323,
+    0, 256, 14844, 28418, 20737, 32766, 14844, 256,
+}
+
 local portalThis   -- current level's portal data
 local portalTile   -- tile index of portal
 local portalPos    -- pixel position of portal
@@ -54,6 +59,12 @@ local function DoPortalTicker()
 end
 
 Portal_Ticker = DoNothing  -- global, swapped to DoPortalTicker when ready
+
+function Portal_SwordFish()
+    Video_Sprite(portalPos, swordFishGfx, 0x00, 0x05)
+    Video_TileInk(portalTile + 32, 0x06)
+    Video_TileInk(portalTile + 33, 0x07)
+end
 
 function Portal_Ready()
     Portal_Ticker = DoPortalTicker

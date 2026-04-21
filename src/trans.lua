@@ -62,6 +62,7 @@ local function DoTransInit()
 
     if gameDemo == 0 then
         Audio_Play(MUS_STOP)
+        Audio_StopAllSfx()
     end
 
     Ticker = DoTransTicker

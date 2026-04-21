@@ -57,6 +57,7 @@ KEY_U      = 22
 KEY_O      = 23
 KEY_UP     = 24
 KEY_DOWN   = 25
+KEY_R      = 26
 
 -- Key mapping: key code -> Love2D key name
 keyMap = {
@@ -177,8 +178,13 @@ activeGamepad = nil
 -- Analog stick dead zone
 local AXIS_THRESHOLD = 0.5
 
--- Check if a key is currently held (keyboard or gamepad)
+-- Check if a key is currently held (keyboard or gamepad).
+-- During playback, returns the recorded input instead of querying hardware.
 function System_IsKey(key)
+    if replayMode == REPLAY_PLAYING then
+        return Replay_IsKey(key)
+    end
+
     local k = keyMap[key]
     local held = k and love.keyboard.isDown(k) or false
 
@@ -195,9 +201,13 @@ function System_IsKey(key)
         end
     end
 
-
     return held and 1 or 0
 end
+
+-- Replay mode constants (shared with replay.lua and common.lua)
+REPLAY_NONE      = 0
+REPLAY_RECORDING = 1
+REPLAY_PLAYING   = 2
 
 -- Border color (drawn around the game viewport)
 borderColor = {0, 0, 0}

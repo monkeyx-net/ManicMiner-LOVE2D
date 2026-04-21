@@ -231,48 +231,72 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Options menu
+--
+-- Always-visible items (sel 0, 1):
+--   Row 48: LIVES
+--   Row 64: LEVEL  (level name shown at row 80)
+-- Conditional items appended in order, starting at row 96 (16 rows each):
+--   DELETE SAVE   (when a save state exists)
+--   SAVE REPLAY   (when an in-memory recording is available)
+--   DELETE REPLAY (when replay.dat exists on disk)
 
-local optionSel     = 0     -- 0 = lives row, 1 = level row, 2 = delete save
-local optionLives   = 3
-local optionLevel   = 0
-local optionHasSave = false
+local optionSel   = 0
+local optionLives = 3
+local optionLevel = 0
+local optionItems = {}  -- ordered list of visible item type strings (built at init)
 
--- Large text is 16 rows tall; rows for options items:
---   Row 48: LIVES         (48-63)
---   Row 64: LEVEL number  (64-79)
---   Row 80: level name    (80-95)
---   Row 96: DELETE SAVE   (96-111, only when save exists)
+-- Ink colour helpers: yellow when selected, white otherwise (for edit items);
+-- red when selected, magenta otherwise (for destructive items).
+local function editInk(sel)   return sel and "\x06" or "\x07" end
+local function destInk(sel)   return sel and "\x02" or "\x03" end
 
 local function DrawOptionsItems()
-    local livesInk = (optionSel == 0) and "\x06" or "\x07"
-    local levelInk = (optionSel == 1) and "\x06" or "\x07"
-
-    -- Clear item rows (64 rows covers all four possible rows)
-    Video_PixelFill(48 * WIDTH, 64 * WIDTH, 0)
+    -- Clear all possible item rows (rows 48–143)
+    Video_PixelFill(48 * WIDTH, 96 * WIDTH, 0)
 
     Video_WriteLarge(48 * WIDTH, 16,
-        "\x01\x00\x02" .. livesInk ..
+        "\x01\x00\x02" .. editInk(optionSel == 0) ..
         string.format("LIVES:  %d", optionLives))
 
     Video_WriteLarge(64 * WIDTH, 16,
-        "\x01\x00\x02" .. levelInk ..
+        "\x01\x00\x02" .. editInk(optionSel == 1) ..
         string.format("LEVEL: %02d", optionLevel))
 
     Video_WriteLarge(80 * WIDTH, 24,
         "\x01\x00\x02\x05" .. levelData[optionLevel].name)
 
-    if optionHasSave then
-        local saveInk = (optionSel == 2) and "\x02" or "\x03"
-        Video_WriteLarge(96 * WIDTH, 16,
-            "\x01\x00\x02" .. saveInk .. "DELETE SAVE")
+    -- Conditional items start at row 96, one per 16-row slot
+    for i = 3, #optionItems do
+        local item = optionItems[i]
+        local row  = 96 + (i - 3) * 16
+        local s    = (optionSel == i - 1)
+        if item == "deletesave" then
+            Video_WriteLarge(row * WIDTH, 16,
+                "\x01\x00\x02" .. destInk(s) .. "DELETE SAVE")
+        elseif item == "playreplay" then
+            Video_WriteLarge(row * WIDTH, 16,
+                "\x01\x00\x02" .. editInk(s) .. "PLAY REPLAY")
+        elseif item == "savereplay" then
+            Video_WriteLarge(row * WIDTH, 16,
+                "\x01\x00\x02" .. editInk(s) .. "SAVE REPLAY")
+        elseif item == "deletereplay" then
+            Video_WriteLarge(row * WIDTH, 16,
+                "\x01\x00\x02" .. destInk(s) .. "DELETE REPLAY")
+        end
     end
 end
 
 local function DoOptionsInit()
-    optionLives   = gameConfigLives
-    optionLevel   = gameConfigLevel
-    optionSel     = 0
-    optionHasSave = SaveState_Exists()
+    optionLives = gameConfigLives
+    optionLevel = gameConfigLevel
+    optionSel   = 0
+
+    -- Build the ordered list of visible items
+    optionItems = {"lives", "level"}
+    if SaveState_Exists()  then optionItems[#optionItems + 1] = "deletesave"   end
+    if Replay_HasBuffer()  then optionItems[#optionItems + 1] = "playreplay"   end
+    if Replay_HasBuffer()  then optionItems[#optionItems + 1] = "savereplay"   end
+    if Replay_Exists()     then optionItems[#optionItems + 1] = "deletereplay" end
 
     Video_PixelFill(0, WIDTH * HEIGHT, 0)
     Video_WriteLarge(16 * WIDTH, math.floor((WIDTH - 7 * 8) / 2),
@@ -280,17 +304,19 @@ local function DoOptionsInit()
 
     DrawOptionsItems()
 
-    -- Instructions: rows 112, 128, 160 (all 16 rows tall, non-overlapping)
-    Video_WriteLarge(112 * WIDTH, 4, "\x01\x00\x02\x03LEFT/RIGHT = CHANGE VALUE")
-    Video_WriteLarge(128 * WIDTH, 4, "\x01\x00\x02\x03UP/DOWN = SWITCH SETTING")
-    Video_WriteLarge(160 * WIDTH, 4, "\x01\x00\x02\x07ENTER = OK   ESC = CANCEL")
+    -- Instructions in small text below all possible item rows.
+    -- Worst case: 4 conditional items ending at row 159; instructions start at 162.
+    Video_Write(162 * WIDTH + 4, "\x01\x00\x02\x03LEFT/RIGHT = CHANGE VALUE")
+    Video_Write(171 * WIDTH + 4, "\x01\x00\x02\x03UP/DOWN = SWITCH SETTING")
+    Video_Write(180 * WIDTH + 4, "\x01\x00\x02\x07ENTER = OK   ESC = CANCEL")
 
     Ticker = DoNothing
 end
 
 local function DoOptionsResponder()
+    local maxSel = #optionItems - 1  -- 0-based
+
     if gameInput == KEY_UP or gameInput == KEY_DOWN then
-        local maxSel = optionHasSave and 2 or 1
         if gameInput == KEY_UP then
             optionSel = (optionSel - 1 + maxSel + 1) % (maxSel + 1)
         else
@@ -314,10 +340,19 @@ local function DoOptionsResponder()
             DrawOptionsItems()
         end
     elseif gameInput == KEY_ENTER then
-        if optionSel == 2 then
+        local item = optionItems[optionSel + 1]
+        if item == "deletesave" then
             SaveState_Delete()
             Action = Title_Action
-        else
+        elseif item == "playreplay" then
+            Replay_StartPlayback()
+        elseif item == "savereplay" then
+            Replay_Save()
+            Action = Title_Action
+        elseif item == "deletereplay" then
+            Replay_Delete()
+            Action = Title_Action
+        else  -- lives or level
             gameConfigLives = optionLives
             gameConfigLevel = optionLevel
             GameConfig_Save()

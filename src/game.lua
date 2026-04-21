@@ -190,6 +190,7 @@ local function DoGameDrawer()
     Game_DrawAir()
     Game_ExtraLife()
     Game_SaveFlash()
+    Replay_DrawOSD()
 
     if gameFrame == 0 then return end
 
@@ -350,6 +351,8 @@ local function DoGameResponder()
         SaveState_Save()
         gameSaveFlashCount = 16
         Game_SaveFlash = DoSaveFlash
+    elseif gameInput == KEY_R then
+        Replay_ToggleR()
     else
         Cheat_Responder()
     end

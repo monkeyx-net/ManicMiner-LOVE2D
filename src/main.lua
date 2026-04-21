@@ -3,6 +3,7 @@
 -- Load modules that don't need Love2D graphics API at parse time
 require("common")
 require("misc")
+require("replay")
 
 -- -----------------------------------------------------------------------------
 -- Love2D callbacks
@@ -26,6 +27,7 @@ function love.load()
     require("loader")
     require("savestate")
     GameConfig_Load()
+    Replay_Load()  -- restore any saved recording from disk
 
     -- Window title and icon
     love.window.setTitle("Manic Miner")
@@ -131,6 +133,7 @@ function love.keypressed(key, scancode, isrepeat)
     elseif key == "7" then mapped = KEY_7
     elseif key == "8" then mapped = KEY_8
     elseif key == "9" then mapped = KEY_9
+    elseif key == "r"    then mapped = KEY_R
     elseif key == "s"    then mapped = KEY_S
     elseif key == "u"    then mapped = KEY_U
     elseif key == "o"    then mapped = KEY_O

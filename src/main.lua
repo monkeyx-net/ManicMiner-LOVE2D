@@ -133,7 +133,9 @@ function love.keypressed(key, scancode, isrepeat)
     elseif key == "7" then mapped = KEY_7
     elseif key == "8" then mapped = KEY_8
     elseif key == "9" then mapped = KEY_9
-    elseif key == "r"    then mapped = KEY_R
+    elseif key == "r"      then mapped = KEY_R
+    elseif key == "l"      then mapped = KEY_L
+    elseif key == "delete" then mapped = KEY_DELETE
     elseif key == "s"    then mapped = KEY_S
     elseif key == "u"    then mapped = KEY_U
     elseif key == "o"    then mapped = KEY_O

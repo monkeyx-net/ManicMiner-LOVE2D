@@ -2,6 +2,14 @@
 
 All notable changes to Manic Miner LÖVE2D are documented here.
 
+## [0.9.4] - 2026-04-23
+
+### New Features
+ - Press R to record a game sesson. R to stop
+ - Game savestate now supports 5 slots. 
+ - U Key to save and pick slot
+ - Save stated managed in Options Menu O Key on startup.
+
 ## [0.9.3] - 2026-03-25
 
 ### Minor update

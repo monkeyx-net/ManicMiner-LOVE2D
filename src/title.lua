@@ -99,7 +99,7 @@ local TEXT_32 = "                                "
 local textTicker = {
     "\x01\x00\x02\x02" .. "M" .. "\x02\x06" .. "A" .. "\x02\x04" .. "N" .. "\x02\x05" .. "I" .. "\x02\x03" .. "C " .. "\x02\x05" .. "M" .. "\x02\x03" .. "I" .. "\x02\x02" .. "N" .. "\x02\x06" .. "E" .. "\x02\x04" .. "R   " ..
     "\x02\x07" .. "(C) Bug-Byte Ltd. 1983   By Matthew Smith" .. TEXT_32 ..
-    "\x02\x05" .. "Cursor Keys/PAD = Left & Right   " .. "\x02\x06" .. "Space/A Button = Jump   " .. "\x02\x03" .. "Pause/Tab/X Button = Pause      " .. "\x02\x04" .. "Alt/Y Button = Tune On/Off     " .. "\x02\x05" .. "S/B Button = High Scores        " .. "\x02\x05" .. "Back + Start Buttons = Quit".. TEXT_32 ..
+    "\x02\x05" .. "L to Load a Gaame - Cursor Keys/PAD = Left & Right   " .. "\x02\x06" .. "Space/A Button = Jump   " .. "\x02\x03" .. "Pause/Tab/X Button = Pause      " .. "\x02\x04" .. "Alt/Y Button = Tune On/Off     " .. "\x02\x05" .. "S/B Button = High Scores        " .. "\x02\x05" .. "Back + Start Buttons = Quit".. TEXT_32 ..
     "\x02\x07" .. "Guide " .. "\x02\x05" .. "M" .. "\x02\x03" .. "i" .. "\x02\x02" .. "n" .. "\x02\x06" .. "e" .. "\x02\x04" .. "r" .. "\x02\x07" .. " Willy through 20 " .. "\x02\x02" .. "lethal " .. "\x02\x07" .. "caverns ...",
 }
 
@@ -174,7 +174,6 @@ local function DoTitleInit()
     Video_Write(88 * WIDTH + 22 * 8, "\x02\x06" .. "Miner Willy")
 
     Video_WriteLarge(104 * WIDTH, 6 * 8, "\x02\x00" .. "PRESS " .. "\x02\x06" .. "ENTER" .. "\x02\x00" .. " TO START")
-
     Video_WriteLarge(KEYBOARD, 4, "\x01\x00\x02\x07\x1a\x1b\x1c\x1a\x1b\x1b\x1c\x1a\x1b\x1c\x1a\x1b\x1b\x1c\x1a\x1b\x1c\x1a\x1b\x1b\x1c\x1a\x1b\x1c\x1a\x1b\x1b\x1c\x1a\x1b\x1c")
 
     textPos = WIDTH
@@ -188,22 +187,53 @@ local function DoTitleInit()
 end
 
 -- ---------------------------------------------------------------------------
--- Save state load prompt
+-- Save/Load menu (5 slots, accessed with L from the title screen)
 
-local function DoLoadPromptInit()
-    -- Keep title background; overlay a prompt in the HUD area (rows 144-191)
-    Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
-    -- Large text is 16 rows tall — space lines 16+ rows apart
-    Video_WriteLarge(148 * WIDTH, 4,
-        "\x01\x00\x02\x06SAVED GAME FOUND")
-    Video_WriteLarge(172 * WIDTH, 4,
-        "\x01\x00\x02\x07ENTER \x02\x04= LOAD  \x02\x07ESC \x02\x02= NEW GAME")
+local saveLoadSel = 1
+
+local function DrawSaveLoadSlots()
+    Video_PixelFill(32 * WIDTH, 80 * WIDTH, 0)
+    for i = 1, 5 do
+        local row  = (32 + (i - 1) * 16) * WIDTH
+        local info = SaveState_GetInfo(i)
+        local sel  = (saveLoadSel == i)
+        local text
+        if info then
+            local name = levelData[info.level].name
+            if #name > 14 then name = name:sub(1, 13) .. "." end
+            local ink = sel and "\x06" or "\x07"
+            text = "\x01\x00\x02" .. ink ..
+                   string.format("%sSLOT %d  %-14s L:%d",
+                       sel and ">" or " ", i, name, info.lives)
+        else
+            local ink = sel and "\x05" or "\x03"
+            text = "\x01\x00\x02" .. ink ..
+                   string.format("%sSLOT %d  ---  EMPTY  ---",
+                       sel and ">" or " ", i)
+        end
+        Video_WriteLarge(row, 8, text)
+    end
+end
+
+local function DoSaveLoadInit()
+    saveLoadSel = 1
+    Video_PixelFill(0, WIDTH * HEIGHT, 0)
+    Video_WriteLarge(8 * WIDTH, 92, "\x01\x00\x02\x06LOAD GAME")
+    DrawSaveLoadSlots()
+    Video_Write(112 * WIDTH + 4, "\x01\x00\x02\x03UP/DOWN = SELECT SLOT")
+    Video_Write(120 * WIDTH + 4, "\x01\x00\x02\x07ENTER=LOAD  \x02\x02DEL=ERASE  \x02\x07ESC=BACK")
     Ticker = DoNothing
 end
 
-local function DoLoadPromptResponder()
-    if gameInput == KEY_ENTER then
-        local saveData = SaveState_Load()
+local function DoSaveLoadResponder()
+    if gameInput == KEY_UP then
+        saveLoadSel = (saveLoadSel - 2) % 5 + 1
+        DrawSaveLoadSlots()
+    elseif gameInput == KEY_DOWN then
+        saveLoadSel = saveLoadSel % 5 + 1
+        DrawSaveLoadSlots()
+    elseif gameInput == KEY_ENTER then
+        local saveData = SaveState_Load(saveLoadSel)
         if saveData then
             gameVersion = System_IsKey(KEY_LSHIFT)
             Robots_Version(gameVersion)
@@ -214,19 +244,19 @@ local function DoLoadPromptResponder()
             Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
             Video_WriteLarge(SCORE, 4, "\x01\x00\x02\x06" .. "High .....0        " .. "\x02\x0e" .. "Score .....0")
             Game_StartWithSave(saveData)
-        else
-            Action = Title_Action
+        end
+    elseif gameInput == KEY_DELETE then
+        if SaveState_Exists(saveLoadSel) then
+            SaveState_Delete(saveLoadSel)
+            DrawSaveLoadSlots()
         end
     elseif gameInput == KEY_ESCAPE then
-        gameVersion = System_IsKey(KEY_LSHIFT)
-        Robots_Version(gameVersion)
-        gameDemo = 0
-        Action = DoStartGame
+        Action = Title_Action
     end
 end
 
-local function LoadPrompt_Action()
-    SetState(DoLoadPromptResponder, DoLoadPromptInit, Audio_Drawer, DoNothing)
+local function SaveLoadMenu_Action()
+    SetState(DoSaveLoadResponder, DoSaveLoadInit, DoNothing, DoNothing)
 end
 
 -- ---------------------------------------------------------------------------
@@ -236,7 +266,7 @@ end
 --   Row 48: LIVES
 --   Row 64: LEVEL  (level name shown at row 80)
 -- Conditional items appended in order, starting at row 96 (16 rows each):
---   DELETE SAVE   (when a save state exists)
+--   PLAY REPLAY   (when an in-memory recording is available)
 --   SAVE REPLAY   (when an in-memory recording is available)
 --   DELETE REPLAY (when replay.dat exists on disk)
 
@@ -270,10 +300,7 @@ local function DrawOptionsItems()
         local item = optionItems[i]
         local row  = 96 + (i - 3) * 16
         local s    = (optionSel == i - 1)
-        if item == "deletesave" then
-            Video_WriteLarge(row * WIDTH, 16,
-                "\x01\x00\x02" .. destInk(s) .. "DELETE SAVE")
-        elseif item == "playreplay" then
+        if item == "playreplay" then
             Video_WriteLarge(row * WIDTH, 16,
                 "\x01\x00\x02" .. editInk(s) .. "PLAY REPLAY")
         elseif item == "savereplay" then
@@ -293,7 +320,6 @@ local function DoOptionsInit()
 
     -- Build the ordered list of visible items
     optionItems = {"lives", "level"}
-    if SaveState_Exists()  then optionItems[#optionItems + 1] = "deletesave"   end
     if Replay_HasBuffer()  then optionItems[#optionItems + 1] = "playreplay"   end
     if Replay_HasBuffer()  then optionItems[#optionItems + 1] = "savereplay"   end
     if Replay_Exists()     then optionItems[#optionItems + 1] = "deletereplay" end
@@ -341,10 +367,7 @@ local function DoOptionsResponder()
         end
     elseif gameInput == KEY_ENTER then
         local item = optionItems[optionSel + 1]
-        if item == "deletesave" then
-            SaveState_Delete()
-            Action = Title_Action
-        elseif item == "playreplay" then
+        if item == "playreplay" then
             Replay_StartPlayback()
         elseif item == "savereplay" then
             Replay_Save()
@@ -369,14 +392,12 @@ end
 
 local function DoTitleResponder()
     if gameInput == KEY_ENTER then
-        if SaveState_Exists() then
-            Action = LoadPrompt_Action
-        else
-            gameVersion = System_IsKey(KEY_LSHIFT)
-            Robots_Version(gameVersion)
-            gameDemo = 0
-            Action = DoStartGame
-        end
+        gameVersion = System_IsKey(KEY_LSHIFT)
+        Robots_Version(gameVersion)
+        gameDemo = 0
+        Action = DoStartGame
+    elseif gameInput == KEY_L then
+        Action = SaveLoadMenu_Action
     elseif gameInput == KEY_S then
         Action = HiScores_Action
     elseif gameInput == KEY_O then

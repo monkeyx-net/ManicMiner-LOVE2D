@@ -27,20 +27,48 @@ function GameConfig_Load()
 end
 
 -- ---------------------------------------------------------------------------
--- Save states
+-- Save states (5 slots: savestate_1.dat through savestate_5.dat)
 
-local SAVE_FILE    = "savestate.dat"
 local SAVE_VERSION = 1
+local NUM_SLOTS    = 5
 
-function SaveState_Exists()
-    return love.filesystem.getInfo(SAVE_FILE) ~= nil
+local function slotFile(slot)
+    return string.format("savestate_%d.dat", slot)
 end
 
-function SaveState_Delete()
-    love.filesystem.remove(SAVE_FILE)
+function SaveState_Exists(slot)
+    return love.filesystem.getInfo(slotFile(slot)) ~= nil
 end
 
-function SaveState_Save()
+function SaveState_AnyExists()
+    for i = 1, NUM_SLOTS do
+        if SaveState_Exists(i) then return true end
+    end
+    return false
+end
+
+function SaveState_Delete(slot)
+    love.filesystem.remove(slotFile(slot))
+end
+
+-- Returns {level, lives, score} for display, or nil if slot is empty/invalid
+function SaveState_GetInfo(slot)
+    local data = love.filesystem.read(slotFile(slot))
+    if not data then return nil end
+    local state = {}
+    for line in data:gmatch("[^\n]+") do
+        local k, v = line:match("^([^=]+)=(.*)$")
+        if k then state[k] = v end
+    end
+    if tonumber(state.version) ~= SAVE_VERSION then return nil end
+    return {
+        level = tonumber(state.level) or 0,
+        lives = tonumber(state.lives) or 3,
+        score = tonumber(state.score) or 0,
+    }
+end
+
+function SaveState_Save(slot)
     local parts = {}
     local function add(k, v)
         parts[#parts + 1] = k .. "=" .. tostring(v)
@@ -95,11 +123,11 @@ function SaveState_Save()
     parts[#parts + 1] = "robotMove="   .. table.concat(rm, ",")
     parts[#parts + 1] = "robotActive=" .. table.concat(ra, ",")
 
-    love.filesystem.write(SAVE_FILE, table.concat(parts, "\n"))
+    love.filesystem.write(slotFile(slot), table.concat(parts, "\n"))
 end
 
-function SaveState_Load()
-    local data = love.filesystem.read(SAVE_FILE)
+function SaveState_Load(slot)
+    local data = love.filesystem.read(slotFile(slot))
     if not data then return nil end
 
     local state = {}

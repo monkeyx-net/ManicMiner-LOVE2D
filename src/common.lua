@@ -58,6 +58,8 @@ KEY_O      = 23
 KEY_UP     = 24
 KEY_DOWN   = 25
 KEY_R      = 26
+KEY_L      = 27
+KEY_DELETE = 28
 
 -- Key mapping: key code -> Love2D key name
 keyMap = {

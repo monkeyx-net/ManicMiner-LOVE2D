@@ -338,6 +338,66 @@ local function DoGameDemoResponder()
     Action = Title_Action
 end
 
+-- ---------------------------------------------------------------------------
+-- In-game save slot picker (shown when KEY_U pressed; overlays score area)
+
+local savePickerSel    = 1
+local preSaveTicker    = nil
+local preSaveDrawer    = nil
+local preSaveResponder = nil
+
+local SCORE_TEMPLATE =
+    "\x01\x00\x02\x06" .. "High .....0        " .. "\x02\x0e" .. "Score .....0"
+
+local function DrawSavePicker()
+    Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
+    Video_Write(144 * WIDTH + 4,
+        "\x01\x00\x02\x06SAVE GAME  \x02\x07ENT=SAVE  \x02\x02ESC=CANCEL")
+    for i = 1, 5 do
+        local row  = (152 + (i - 1) * 8) * WIDTH
+        local info = SaveState_GetInfo(i)
+        local sel  = (savePickerSel == i)
+        local ink  = sel and "\x06" or "\x07"
+        local arrow = sel and ">" or " "
+        local txt
+        if info then
+            local name = levelData[info.level].name
+            if #name > 10 then name = name:sub(1, 9) .. "." end
+            txt = string.format("%sSLOT %d: %-11s L:%d", arrow, i, name, info.lives)
+        else
+            txt = string.format("%sSLOT %d: EMPTY", arrow, i)
+        end
+        Video_Write(row + 4, "\x01\x00\x02" .. ink .. txt)
+    end
+end
+
+local function RestoreFromSavePicker()
+    Responder = preSaveResponder
+    Ticker    = preSaveTicker
+    Drawer    = preSaveDrawer
+    Video_PixelFill(144 * WIDTH, 48 * WIDTH, 0x0)
+    Video_WriteLarge(SCORE, 4, SCORE_TEMPLATE)
+    Game_DrawScore()
+    Game_DrawHiScore()
+end
+
+local function DoSavePickerResponder()
+    if gameInput == KEY_UP then
+        savePickerSel = (savePickerSel - 2) % 5 + 1
+        DrawSavePicker()
+    elseif gameInput == KEY_DOWN then
+        savePickerSel = savePickerSel % 5 + 1
+        DrawSavePicker()
+    elseif gameInput == KEY_ENTER then
+        SaveState_Save(savePickerSel)
+        RestoreFromSavePicker()
+        gameSaveFlashCount = 16
+        Game_SaveFlash = DoSaveFlash
+    elseif gameInput == KEY_ESCAPE then
+        RestoreFromSavePicker()
+    end
+end
+
 local function DoGameResponder()
     if gameInput == KEY_PAUSE then
         Game_Pause(1 - gamePaused)
@@ -348,9 +408,14 @@ local function DoGameResponder()
     elseif gameInput == KEY_ESCAPE then
         Action = Title_Action
     elseif gameInput == KEY_U then
-        SaveState_Save()
-        gameSaveFlashCount = 16
-        Game_SaveFlash = DoSaveFlash
+        savePickerSel    = 1
+        preSaveTicker    = Ticker
+        preSaveDrawer    = Drawer
+        preSaveResponder = Responder
+        Ticker    = DoNothing
+        Drawer    = DoNothing
+        Responder = DoSavePickerResponder
+        DrawSavePicker()
     elseif gameInput == KEY_R then
         Replay_ToggleR()
     else

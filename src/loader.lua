@@ -29,7 +29,7 @@ local loaderTicks = 0
 local loaderFlash = 0
 local loaderTimer = {}
 
-local BUILD = "love2d - v0.9.3"  -- version string
+local BUILD = "love2d - v0.9.4"  -- version string
 
 local function DoLoaderDrawer()
     -- Copy colour data to rows 256..511 (the logo area)

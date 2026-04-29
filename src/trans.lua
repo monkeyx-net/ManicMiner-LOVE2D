@@ -16,7 +16,7 @@ local function DoTransDrawer()
     end
 end
 
-local TRANS_STEP = 2  -- logical ticks advanced per game tick (halves draw calls)
+local TRANS_STEP = 4  -- logical ticks advanced per game tick; was 2 (completes wipe ~2× faster on slow devices)
 
 local function DoTransTicker()
     for _ = 1, TRANS_STEP do

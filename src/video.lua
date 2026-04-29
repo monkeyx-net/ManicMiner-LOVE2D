@@ -60,6 +60,13 @@ local spriteDirtyList  = {}
 local spriteDirtyCount = 0
 do for _i = 1, 768 do spriteDirtyList[_i] = 0 end end
 
+-- Tile dirty tracking: which 8×8 tiles were touched by sprites last draw pass.
+-- Level_Drawer reads this to skip static tiles, saving ~90% of tile redraws.
+tileDirtySet = {}           -- global: boolean[0..511], read by levels.lua
+local tileDirtyQueue = {}   -- tile indices dirtied this pass (for efficient clear)
+local tileDirtyQueueN = 0
+do for _i = 0, 511 do tileDirtySet[_i] = false end end
+
 function Video_Init()
     imgData = love.image.newImageData(WIDTH, HEIGHT)
     setPixel = imgData.setPixel   -- cache once; reused by all inlined pixel writers
@@ -120,13 +127,33 @@ function Video_ClearSprites()
     local ci   = bg + 1
     local r, g, b = paletteR[ci], paletteG[ci], paletteB[ci]
     local px, py = pixelX, pixelY
+
+    -- Clear previous frame's tile-dirty marks before building new ones
+    local tds = tileDirtySet
+    for i = 1, tileDirtyQueueN do
+        tds[tileDirtyQueue[i]] = false
+    end
+    tileDirtyQueueN = 0
+
+    -- Clear sprite pixels and record which game-area tiles were touched
     for i = 1, spriteDirtyCount do
         local p = spriteDirtyList[i]
         if band(videoPixel[p], mask) ~= 0 then
             videoPixel[p] = 0
             setPixel(imgData, px[p], py[p], r, g, b, 1)
         end
+        -- Convert pixel position to tile index; only game area (tile rows 0-15)
+        local ty = rshift(py[p], 3)
+        if ty < 16 then
+            local tile = ty * 32 + rshift(px[p], 3)
+            if not tds[tile] then
+                tds[tile] = true
+                tileDirtyQueueN = tileDirtyQueueN + 1
+                tileDirtyQueue[tileDirtyQueueN] = tile
+            end
+        end
     end
+
     imageDirty = spriteDirtyCount > 0
     spriteDirtyCount = 0
 end
@@ -598,60 +625,63 @@ local function textCode(text, i)
     return 0
 end
 
--- Iterate over characters in text, handling color escape codes, calling fn(c) per char
-local function TextIter(text, fn)
+-- Draw small text at pixel position pos
+function Video_Write(pos, text)
     local i = 1
-    while i <= #text do
+    local len = #text
+    while i <= len do
         if textCode(text, i) ~= 0 then
             i = i + 2
         else
-            fn(string.byte(text, i))
+            local c = string.byte(text, i)
+            local cs = charSet[c - 32 + 1]
+            if cs then
+                local width = cs[1]
+                for col = 2, width do
+                    local pixel = pos
+                    local byte = cs[col]
+                    for bit = 0, 7 do
+                        local v = band(rshift(byte, bit), 1)
+                        System_SetPixel(pixel, textInk[v + 1])
+                        pixel = pixel + WIDTH
+                    end
+                    pos = pos + 1
+                end
+                pos = pos + 1  -- 1px gap between characters
+            end
             i = i + 1
         end
     end
 end
 
--- Draw small text at pixel position pos
-function Video_Write(pos, text)
-    TextIter(text, function(c)
-        local cs = charSet[c - 32 + 1]
-        if cs then
-            local width = cs[1]
-            for col = 2, width do
-                local pixel = pos
-                local byte = cs[col]
-                for bit = 0, 7 do
-                    local v = band(rshift(byte, bit), 1)
-                    System_SetPixel(pixel, textInk[v + 1])
-                    pixel = pixel + WIDTH
-                end
-                pos = pos + 1
-            end
-            pos = pos + 1  -- 1px gap between characters
-        end
-    end)
-end
-
 -- Draw large text (16-row tall) at pixel position pos, starting at x column
 function Video_WriteLarge(pos, x, text)
-    TextIter(text, function(c)
-        local cs = charSetLarge[c + 1]
-        if cs then
-            for col = 0, 7 do
-                local cx = x + col
-                if cx >= 0 and cx < WIDTH then
-                    local pixel = pos + cx
-                    local word = cs[col + 1] or 0
-                    for bit = 0, 15 do
-                        local v = band(rshift(word, bit), 1)
-                        System_SetPixel(pixel, textInk[v + 1])
-                        pixel = pixel + WIDTH
+    local i = 1
+    local len = #text
+    while i <= len do
+        if textCode(text, i) ~= 0 then
+            i = i + 2
+        else
+            local c = string.byte(text, i)
+            local cs = charSetLarge[c + 1]
+            if cs then
+                for col = 0, 7 do
+                    local cx = x + col
+                    if cx >= 0 and cx < WIDTH then
+                        local pixel = pos + cx
+                        local word = cs[col + 1] or 0
+                        for bit = 0, 15 do
+                            local v = band(rshift(word, bit), 1)
+                            System_SetPixel(pixel, textInk[v + 1])
+                            pixel = pixel + WIDTH
+                        end
                     end
                 end
             end
+            x = x + 8
+            i = i + 1
         end
-        x = x + 8
-    end)
+    end
 end
 
 -- Piano key drawing (for title screen keyboard)

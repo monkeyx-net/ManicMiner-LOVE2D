@@ -845,6 +845,7 @@ levelData[19] = {
 -- ============================================================
 -- Level runtime state (initialized by Level_Init)
 -- ============================================================
+levelForceRedraw = false    -- global: set true by Level_Init; Level_Drawer consumes it for full first-frame redraw
 local levelTileType  = {}   -- 512 entries: tile type for each tile
 local levelTileGfx   = {}   -- 512 entries: which gfx index (0-9)
 local levelGfx       = {}   -- current level graphics [0..9][1..8]
@@ -931,6 +932,9 @@ function Level_Init()
     conveyorPhase = 0
 
     kongFallen = false
+
+    -- Signal Level_Drawer to do a full redraw on the first tick of this level
+    levelForceRedraw = true
 end
 
 function Level_GetTileType(tile)
@@ -1031,6 +1035,12 @@ function Level_Drawer()
         Title_BGCopy()
     end
 
+    -- Selective redraw: skip static tiles not touched by sprites.
+    -- fullRedraw is true on the first tick of each level and for TWENTY (title-art background).
+    local fullRedraw = levelForceRedraw or (gameLevel == TWENTY)
+    levelForceRedraw = false
+    local tds = tileDirtySet        -- local ref to global; avoids repeated global lookup
+
     local itemSeq = 0
     local gt = gameTicks          -- cache: read 512× per frame inside the loop below
     local shifted = {0,0,0,0,0,0,0,0}  -- reused across conveyor tiles; avoids 60 Hz allocations
@@ -1046,6 +1056,12 @@ function Level_Drawer()
             local gfx = levelGfx[gfxIdx + 1] or {0,0,0,0,0,0,0,0}
             local ttype = levelTileType[tile]
             if ttype == T_VOID then goto continue end  -- background comes from Title_BGCopy
+            -- Skip tiles that haven't changed: not animated and not touched by a sprite
+            if not fullRedraw then
+                local animated = ttype == T_ITEM or ttype == T_CONVEYL
+                              or ttype == T_CONVEYR or ttype == T_COLLAPSE
+                if not animated and not tds[tile] then goto continue end
+            end
             local pos = TILE2PIXEL(tile)
             if ttype == T_ITEM then
                 ink = bor(band(gt + itemSeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item

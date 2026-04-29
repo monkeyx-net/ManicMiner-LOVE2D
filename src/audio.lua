@@ -242,7 +242,9 @@ local samplesPerTick = SAMPLERATE / TICKRATE  -- ~367.5
 function Audio_Update(dt)
     if not audioSource then return end
 
-    local buffered = audioSource:getFreeBufferCount()
+    -- Cap at 3 buffers per frame (~70 ms): on startup all 8 slots are free, which
+    -- would synthesise 4096 samples in one call and stall on weak ARM devices.
+    local buffered = math.min(audioSource:getFreeBufferCount(), 3)
     local buf      = audioBuf
     local setSample = buf.setSample   -- cache method; avoids metatable lookup per sample
     local ac       = audioChannel

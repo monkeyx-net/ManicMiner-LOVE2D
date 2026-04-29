@@ -2,6 +2,13 @@
 
 All notable changes to Manic Miner LÖVE2D are documented here.
 
+## [0.9.5] - 2026-04-29
+
+### Fixed
+
+- Level 17 (Amoebatrons' Revenge): row 9 platform blocks were shifted one tile to the right — corrected to match the original layout
+- Level 19 (The Warehouse): robot speed adjusted from 7 to 6 to match original behaviour
+
 ## [0.9.4] - 2026-04-23
 
 ### New Features

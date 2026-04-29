@@ -1032,6 +1032,8 @@ function Level_Drawer()
     end
 
     local itemSeq = 0
+    local gt = gameTicks          -- cache: read 512× per frame inside the loop below
+    local shifted = {0,0,0,0,0,0,0,0}  -- reused across conveyor tiles; avoids 60 Hz allocations
     for tile = 0, 511 do
         local gfxIdx = levelTileGfx[tile]
         if gfxIdx > 0 then
@@ -1046,7 +1048,7 @@ function Level_Drawer()
             if ttype == T_VOID then goto continue end  -- background comes from Title_BGCopy
             local pos = TILE2PIXEL(tile)
             if ttype == T_ITEM then
-                ink = bor(band(gameTicks + itemSeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item
+                ink = bor(band(gt + itemSeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item
                 itemSeq = itemSeq + 1
             elseif ttype == T_SWITCHON then
                 ink = 4  -- C: levelTile[tile].ink = 0x4 (green)
@@ -1062,7 +1064,6 @@ function Level_Drawer()
                 local phR = band(8 - conveyorPhase, 7)     -- right: decreasing shift
                 local ph1 = (ttype == T_CONVEYL) and phL or phR
                 local ph3 = (ttype == T_CONVEYL) and phR or phL
-                local shifted = {}
                 for r = 1, 8 do
                     local b = gfx[r] or 0
                     if r == 1 and ph1 ~= 0 then

@@ -53,9 +53,12 @@ do
     end
 end
 
--- Dirty sprite pixel list: positions written as B_ROBOT or B_MINER this tick
+-- Dirty sprite pixel list: positions written as B_ROBOT or B_MINER this tick.
+-- Pre-sized so the table's array part never rehashes during normal gameplay
+-- (miner 256 px + 8 robots × up to 64 visible px = ~768 worst-case).
 local spriteDirtyList  = {}
 local spriteDirtyCount = 0
+do for _i = 1, 768 do spriteDirtyList[_i] = 0 end end
 
 function Video_Init()
     imgData = love.image.newImageData(WIDTH, HEIGHT)

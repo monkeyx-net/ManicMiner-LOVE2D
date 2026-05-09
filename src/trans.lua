@@ -73,5 +73,5 @@ local function DoTransResponder()
 end
 
 function Trans_Action()
-    SetState((gameDemo ~= 0) and DoTransResponder or DoNothing, DoTransInit, DoTransDrawer, DoNothing)
+    SetState(DoNothing, DoTransInit, DoTransDrawer, (gameDemo ~= 0) and DoTransResponder or DoNothing)
 end

@@ -853,6 +853,12 @@ local levelCollapseData = {}    -- per-tile collapse counter (8 = full, 0 = gone
 levelBG              = 0        -- background paper colour for this level (global)
 local levelCurrent   = nil
 
+-- Dirty-tile bitmap. A tile is marked dirty when its visible pixels need to
+-- be repainted: on init, after a sprite passed over it, after a collapse,
+-- switch, or item pickup. Static tiles stay clean and skip Level_Drawer's
+-- tile-render path entirely on most frames.
+local levelTileDirty = {}
+
 levelTicks = 0
 
 -- SPG tile tracking (for level 18)
@@ -882,8 +888,17 @@ function Level_SetSaveData(d)
         levelTileType[i]    = d.tileType[i + 1]
         levelTileGfx[i]     = d.tileGfx[i + 1]
         levelCollapseData[i] = d.collapseData[i + 1]
+        levelTileDirty[i]   = true  -- restored layout: force full redraw
     end
     levelItemCount = d.itemCount
+end
+
+-- Public: mark a tile as needing a repaint on the next Level_Drawer pass.
+-- Called by video.lua when sprites have been cleared from the tile.
+function Level_MarkTileDirty(tile)
+    if tile >= 0 and tile <= 511 then
+        levelTileDirty[tile] = true
+    end
 end
 
 function Level_Init()
@@ -917,6 +932,7 @@ function Level_Init()
     levelBG = rshift(lev.info[1] and lev.info[1].colour or 0, 4)
     for i = 0, 511 do
         levelCollapseData[i] = (levelTileType[i] == T_COLLAPSE) and 8 or 0
+        levelTileDirty[i]    = true  -- first draw paints every tile
     end
 
     -- Clear game area to level background colour (prevents artifacts from previous level)
@@ -951,7 +967,7 @@ function Level_TileDelete(tile)
     if tile < 0 or tile > 511 then return end
     levelTileType[tile] = T_SPACE
     levelTileGfx[tile]  = 0
-    -- Erase pixel
+    levelTileDirty[tile] = false  -- we just painted it; nothing to repaint
     local pos = TILE2PIXEL(tile)
     for row = 0, 7 do
         for col = 0, 7 do
@@ -965,6 +981,7 @@ function Level_CollapseTile(tile)
     if tile < 0 or tile > 511 then return end
     if levelTileType[tile] ~= T_COLLAPSE then return end
     levelCollapseData[tile] = levelCollapseData[tile] - 1
+    levelTileDirty[tile]    = true
     if levelCollapseData[tile] <= 0 then
         Level_TileDelete(tile)
     end
@@ -978,8 +995,8 @@ function Level_Switch(tile)
     -- advance gfx to switch-on entry (C: levelTile[tile].gfx += 8 = next 8-byte entry)
     local lev    = levelCurrent
     local gfxIdx = levelTileGfx[tile]
-    levelTileGfx[tile] = gfxIdx + 1
-    -- C: levelTile[tile].ink = 0x4 (green), paper stays 0
+    levelTileGfx[tile]  = gfxIdx + 1
+    levelTileDirty[tile] = false  -- we paint it directly below
     Video_Tile(TILE2PIXEL(tile), levelGfx[gfxIdx + 2] or {0,0,0,0,0,0,0,0}, 0, 4, 8)
 
     -- Kong Beast levels: switches have specific effects
@@ -1016,7 +1033,6 @@ function Level_Ticker()
 
     -- Advance conveyor phase 2 bits per tick (matches C: << 2 / >> 2 each tick)
     conveyorPhase = band(conveyorPhase + 2, 7)
-
 end
 
 function Level_AllItemsCollected()
@@ -1027,14 +1043,33 @@ function Level_Drawer()
     local lev = levelCurrent
     if not lev then return end
 
+    -- Level 20 paints over the title-screen art each frame; conservatively
+    -- mark every tile dirty for that level so the BG composite always happens.
     if gameLevel == TWENTY then
         Title_BGCopy()
+        for i = 0, 511 do levelTileDirty[i] = true end
     end
 
     local itemSeq = 0
     for tile = 0, 511 do
         local gfxIdx = levelTileGfx[tile]
         if gfxIdx > 0 then
+            local ttype = levelTileType[tile]
+            if ttype == T_VOID then goto continue end  -- background comes from Title_BGCopy
+            -- Items animate (cycling ink) and conveyors animate (phase shift),
+            -- so their itemSeq counter must always advance in sync, even if
+            -- the dirty bit happens to be clear elsewhere this frame.
+            local animated =
+                ttype == T_ITEM
+                or ttype == T_CONVEYL or ttype == T_CONVEYR
+                or (ttype == T_COLLAPSE and levelCollapseData[tile] < 8)
+            local mySeq = itemSeq
+            if ttype == T_ITEM then
+                itemSeq = itemSeq + 1
+            end
+            if not animated and not levelTileDirty[tile] then
+                goto continue
+            end
             local infoEntry = lev.info[gfxIdx + 1]
             local paper, ink = 0, 0
             if infoEntry then
@@ -1042,24 +1077,19 @@ function Level_Drawer()
                 ink   = band(infoEntry.colour, 0x0f)
             end
             local gfx = levelGfx[gfxIdx + 1] or {0,0,0,0,0,0,0,0}
-            local ttype = levelTileType[tile]
-            if ttype == T_VOID then goto continue end  -- background comes from Title_BGCopy
             local pos = TILE2PIXEL(tile)
             if ttype == T_ITEM then
-                ink = bor(band(gameTicks + itemSeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item
-                itemSeq = itemSeq + 1
+                ink = bor(band(gameTicks + mySeq * 2, 6), 1)  -- cycle 1,3,5,7 offset per item
             elseif ttype == T_SWITCHON then
-                ink = 4  -- C: levelTile[tile].ink = 0x4 (green)
+                ink = 4
                 paper = 0
             end
 
             if ttype == T_CONVEYL or ttype == T_CONVEYR then
                 -- Rows 0 and 2 (1-indexed: 1 and 3) animate in opposite directions.
                 -- All other rows are static (matches C: only two gfx bytes are rotated).
-                -- CONVEYL: row 1 goes left, row 3 goes right
-                -- CONVEYR: row 1 goes right, row 3 goes left
-                local phL = conveyorPhase                   -- left: increasing shift
-                local phR = band(8 - conveyorPhase, 7)     -- right: decreasing shift
+                local phL = conveyorPhase
+                local phR = band(8 - conveyorPhase, 7)
                 local ph1 = (ttype == T_CONVEYL) and phL or phR
                 local ph3 = (ttype == T_CONVEYL) and phR or phL
                 local shifted = {}
@@ -1075,14 +1105,14 @@ function Level_Drawer()
                 end
                 Video_Tile(pos, shifted, paper, ink, 8)
             elseif ttype == T_COLLAPSE and levelCollapseData[tile] < 8 then
-                -- Draw top portion (solid rows), blank bottom rows
-                local rows = math.max(0, levelCollapseData[tile])
+                local rows     = math.max(0, levelCollapseData[tile])
                 local spaceGfx = levelGfx[1] or {0,0,0,0,0,0,0,0}
-                local nextPos = Video_Tile(pos, gfx, paper, ink, rows)
+                local nextPos  = Video_Tile(pos, gfx, paper, ink, rows)
                 Video_Tile(nextPos, spaceGfx, levelBG, 0, 8 - rows)
             else
                 Video_Tile(pos, gfx, paper, ink, 8)
             end
+            levelTileDirty[tile] = false
         elseif gameLevel == TWENTY and tile < 256 then
             -- Space tile inside the title-screen rows: paint background over title art
             Video_Tile(TILE2PIXEL(tile), levelGfx[1] or {0,0,0,0,0,0,0,0}, levelBG, 0, 8)

@@ -256,7 +256,7 @@ local function DoSaveLoadResponder()
 end
 
 local function SaveLoadMenu_Action()
-    SetState(DoSaveLoadResponder, DoSaveLoadInit, DoNothing, DoNothing)
+    SetState(DoNothing, DoSaveLoadInit, DoNothing, DoSaveLoadResponder)
 end
 
 -- ---------------------------------------------------------------------------
@@ -387,7 +387,7 @@ local function DoOptionsResponder()
 end
 
 local function DoOptionsAction()
-    SetState(DoOptionsResponder, DoOptionsInit, DoNothing, DoNothing)
+    SetState(DoNothing, DoOptionsInit, DoNothing, DoOptionsResponder)
 end
 
 local function DoTitleResponder()
@@ -408,7 +408,7 @@ local function DoTitleResponder()
 end
 
 function Title_Action()
-    SetState(DoTitleResponder, DoTitleInit, Audio_Drawer, DoTitleAction)
+    SetState(DoTitleAction, DoTitleInit, Audio_Drawer, DoTitleResponder)
 end
 
 -- ---------------------------------------------------------------------------
@@ -440,5 +440,5 @@ local function DoHiScoresResponder()
 end
 
 function HiScores_Action()
-    SetState(DoHiScoresResponder, DoHiScoresInit, DoNothing, DoNothing)
+    SetState(DoNothing, DoHiScoresInit, DoNothing, DoHiScoresResponder)
 end

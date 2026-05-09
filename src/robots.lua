@@ -279,7 +279,7 @@ local robotStartData = {
     {
         {x=12, y=3,  min=8,   max=96,  speed=6, move="left",  gfx=5,  ink=0x6, nframes=7, frame=7, tile=0},
         {x=4,  y=7,  min=32,  max=96,  speed=6, move="right", gfx=5,  ink=0x0, nframes=7, frame=0, tile=0},
-        {x=15, y=0,  min=0,   max=88,  speed=1, move="down",  gfx=4,  ink=0x7, nframes=0, frame=0, tile=0},
+        {x=15, y=0,  min=0,   max=88,  speed=1, move="down",  gfx=4,  ink=0x7, nframes=0, frame=0, tile=0, eugene=true},
     },
     -- level 5
     {
@@ -296,7 +296,7 @@ local robotStartData = {
     },
     -- level 7
     {
-        {x=15, y=0,  min=0,   max=100, speed=4, move="kong",  gfx=8,  ink=0xe, nframes=1, frame=0, tile=0},
+        {x=15, y=0,  min=0,   max=100, speed=4, move="kong",  gfx=8,  ink=0xe, nframes=1, frame=0, tile=0, kong=true},
         {x=9,  y=13, min=8,   max=72,  speed=6, move="left",  gfx=9,  ink=0x2, nframes=3, frame=7, tile=0},
         {x=11, y=11, min=88,  max=120, speed=5, move="right", gfx=9,  ink=0xe, nframes=3, frame=0, tile=0},
         {x=18, y=7,  min=144, max=168, speed=6, move="right", gfx=9,  ink=0x6, nframes=3, frame=0, tile=0},
@@ -329,7 +329,7 @@ local robotStartData = {
     },
     -- level 11
     {
-        {x=15, y=0,  min=0,   max=100, speed=4, move="kong",  gfx=8,  ink=0xe, nframes=1, frame=0, tile=0},
+        {x=15, y=0,  min=0,   max=100, speed=4, move="kong",  gfx=8,  ink=0xe, nframes=1, frame=0, tile=0, kong=true},
         {x=9,  y=13, min=8,   max=72,  speed=8, move="left",  gfx=9,  ink=0x6, nframes=3, frame=7, tile=0},
         {x=11, y=11, min=88,  max=120, speed=4, move="right", gfx=9,  ink=0x2, nframes=3, frame=0, tile=0},
         {x=25, y=6,  min=200, max=224, speed=8, move="right", gfx=9,  ink=0x3, nframes=3, frame=0, tile=0},
@@ -407,6 +407,11 @@ end
 
 local curRobot  -- points to current robot during iteration
 
+-- Per-level lookups: index of the kong / eugene robot in robotThis (nil if absent).
+-- Set by Robots_Init.
+local kongRobot   -- direct reference to robotThis[kongIndex]
+local eugeneRobot
+
 -- Forward declarations for move functions
 local DoRobotLeft, DoRobotRight, DoRobotUp, DoRobotDown, DoRobotKong, DoRobotSkylab
 
@@ -477,8 +482,8 @@ DoRobotDown = function()
 end
 
 DoRobotKong = function()
-    robotThis[1].frame = band(robotThis[1].frame, 2)
-    robotThis[1].frame = bor(robotThis[1].frame, band(rshift(gameTicks, 3), 1))
+    local k = kongRobot
+    k.frame = bor(band(k.frame, 2), band(rshift(gameTicks, 3), 1))
 end
 
 local function DoRobotFall()
@@ -493,9 +498,8 @@ local function DoRobotFall()
         end
     else
         curRobot.y = curRobot.y + curRobot.speed
-        -- call kong animation using robotThis[1] as curRobot context
-        robotThis[1].frame = band(robotThis[1].frame, 2)
-        robotThis[1].frame = bor(robotThis[1].frame, band(rshift(gameTicks, 3), 1))
+        local k = kongRobot
+        k.frame = bor(band(k.frame, 2), band(rshift(gameTicks, 3), 1))
         Game_ScoreAdd(100)
     end
 end
@@ -542,20 +546,20 @@ local function DoRobotSpg()
     end
 end
 
-function Robots_Barrel()
-    robotThis[3].max = 18 * 8
-end
-
 function Robots_Kong()
-    robotThis[1].frame = bor(robotThis[1].frame, 2)
-    robotThis[1].nframes = bor(robotThis[1].nframes, 2)
-    robotThis[1].ink = 0xf
-    robotThis[1].DoMove = DoRobotFall
+    local k = kongRobot
+    if not k then return end
+    k.frame   = bor(k.frame, 2)
+    k.nframes = bor(k.nframes, 2)
+    k.ink     = 0xf
+    k.DoMove  = DoRobotFall
     Audio_Sfx(SFX_KONG)
 end
 
 function Robots_Eugene()
-    robotThis[3].DoMove = DoRobotEugene
+    if eugeneRobot then
+        eugeneRobot.DoMove = DoRobotEugene
+    end
 end
 
 function Robots_Version(version)
@@ -673,10 +677,15 @@ end
 function Robots_Init()
     local startList = robotStartData[gameLevel + 1] or {}
 
+    kongRobot   = nil
+    eugeneRobot = nil
+
     for i = 1, 8 do
         local s = startList[i]
         local r = robotThis[i]
         if s then
+            if s.kong   then kongRobot   = r end
+            if s.eugene then eugeneRobot = r end
             r.DoMove  = moveMap[s.move] or DoNothing
             r.DoDraw  = DoRobotDraw
             r.DoSpg   = s.spg and DoRobotSpg or DoNothing

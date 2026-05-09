@@ -2,6 +2,25 @@
 
 All notable changes to Manic Miner LÖVE2D are documented here.
 
+## [0.9.6] - 2026-05-09
+
+### Performance
+
+- Pixel rendering now writes directly into the ImageData buffer via FFI, eliminating millions of per-pixel function calls per second
+- Audio synthesis writes 16-bit samples to the SoundData buffer via FFI, removing the float-conversion path inside the sample loop
+- Level redraws now skip clean tiles — only tiles a sprite passed over, or that animate (items, conveyors, collapsing floors), are repainted each frame
+- Internal collision-flag buffer rewritten as a packed byte array
+
+### Fixed
+
+- Sprite ink pixels overlapping the level layer are now correctly restored when the sprite moves away (previously masked by full-frame redraws)
+
+### Internal
+
+- State machine `SetState(action, ticker, drawer, responder)` argument order now matches the documented per-tick execution order
+- Kong and Eugene robots are now identified by tags rather than hardcoded array indices
+- Removed duplicated keyboard/gamepad polling between input and replay paths
+
 ## [0.9.5] - 2026-04-29
 
 ### Fixed

@@ -96,12 +96,9 @@ function love.update(dt)
 end
 
 function love.draw()
-    -- Draw border colour
     local bc = borderColor
-    love.graphics.setBackgroundColor(bc[1], bc[2], bc[3])
     love.graphics.clear(bc[1], bc[2], bc[3])
 
-    -- Draw game viewport
     local sx, sy, sw, sh = Video_Viewport(love.graphics.getWidth(), love.graphics.getHeight())
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(screenImage, sx, sy, 0, sw / WIDTH, sh / HEIGHT)

@@ -455,7 +455,7 @@ function Game_ChangeLevel()
 end
 
 function Game_Action()
-    SetState((gameDemo ~= 0) and DoGameDemoResponder or DoGameResponder, DoGameInit, DoGameDrawer, DoNothing)
+    SetState(DoNothing, DoGameInit, DoGameDrawer, (gameDemo ~= 0) and DoGameDemoResponder or DoGameResponder)
 end
 
 Scores_Load()

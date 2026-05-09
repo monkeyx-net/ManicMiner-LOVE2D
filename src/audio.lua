@@ -1,5 +1,7 @@
 -- audio.lua: square wave synthesis matching the C original
 
+local ffi = require("ffi")
+
 -- Localize hot-path globals as upvalues for LuaJIT performance
 local band, rshift, bor = band, rshift, bor
 local mfloor = math.floor
@@ -11,8 +13,6 @@ local SFXST_AIR     = 2   -- internal state: playing air SFX
 local SFXST_VICTORY = 3   -- internal state: playing victory SFX
 local SFX_MINER    = 4
 local SFX_MINEROFF = 5
-
-local INV32768 = 1 / 32768   -- precomputed reciprocal; multiply faster than divide
 
 local VOLUME      = 32768 / 4
 local MUSICVOLUME = VOLUME / 8
@@ -225,11 +225,13 @@ end
 local audioSource  = nil
 local audioBufSize = 512    -- samples per buffer (~23ms at 22050 Hz)
 local audioBuf     = nil    -- pre-allocated; reused every fill to avoid GC churn
+local audioPtr     = nil    -- int16_t* into audioBuf for direct sample writes
 
 function Audio_Init()
     -- 8 buffer slots × 46ms = ~370ms headroom; tolerates ~2 FPS before underrun
     audioSource = love.audio.newQueueableSource(SAMPLERATE, 16, 2, 8)
     audioBuf    = love.sound.newSoundData(audioBufSize, SAMPLERATE, 16, 2)
+    audioPtr    = ffi.cast("int16_t*", audioBuf:getFFIPointer())
     audioSource:play()
 end
 
@@ -244,7 +246,7 @@ function Audio_Update(dt)
 
     local buffered = audioSource:getFreeBufferCount()
     local buf      = audioBuf
-    local setSample = buf.setSample   -- cache method; avoids metatable lookup per sample
+    local ptr      = audioPtr
     local ac       = audioChannel
     local nch      = musicChannelsCount
     -- Reuse pre-allocated buffer (queue() copies the data, so reuse is safe)
@@ -260,7 +262,6 @@ function Audio_Update(dt)
 
             local L = 0
             local R = 0
-            -- Inlined channelOutput: eliminates per-channel function call overhead
             for c = 1, nch do
                 local ch = ac[c]
                 if ch.active then
@@ -273,8 +274,9 @@ function Audio_Update(dt)
             end
             if L > 32767 then L = 32767 elseif L < -32768 then L = -32768 end
             if R > 32767 then R = 32767 elseif R < -32768 then R = -32768 end
-            setSample(buf, i * 2,     L * INV32768)
-            setSample(buf, i * 2 + 1, R * INV32768)
+            local k = i * 2
+            ptr[k]     = L
+            ptr[k + 1] = R
         end
         audioSource:queue(buf)
     end

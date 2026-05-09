@@ -27,26 +27,9 @@ local BIT_JUMP  = 4
 
 -- Sample raw keyboard/gamepad state, bypassing the replay path
 local function SampleBits()
-    local l = (keyMap[KEY_LEFT]  and love.keyboard.isDown(keyMap[KEY_LEFT]))  or false
-    local r = (keyMap[KEY_RIGHT] and love.keyboard.isDown(keyMap[KEY_RIGHT])) or false
-    local j = (keyMap[KEY_JUMP]  and love.keyboard.isDown(keyMap[KEY_JUMP]))  or false
-
-    if activeGamepad then
-        if not l then
-            l = activeGamepad:isGamepadDown("dpleft")
-                or activeGamepad:getGamepadAxis("leftx") < -0.5
-        end
-        if not r then
-            r = activeGamepad:isGamepadDown("dpright")
-                or activeGamepad:getGamepadAxis("leftx") > 0.5
-        end
-        if not j then
-            j = activeGamepad:isGamepadDown("a")
-                or activeGamepad:isGamepadDown("b")
-        end
-    end
-
-    return (l and BIT_LEFT or 0) + (r and BIT_RIGHT or 0) + (j and BIT_JUMP or 0)
+    return (System_PollKey(KEY_LEFT)  == 1 and BIT_LEFT  or 0)
+         + (System_PollKey(KEY_RIGHT) == 1 and BIT_RIGHT or 0)
+         + (System_PollKey(KEY_JUMP)  == 1 and BIT_JUMP  or 0)
 end
 
 -- Called at the start of every DoMinerTicker invocation.

@@ -156,11 +156,13 @@ Drawer    = nil
 
 function DoNothing() end
 
-function SetState(responder, ticker, drawer, action)
-    Responder = responder
+-- Set all four state-machine pointers in one call.
+-- Argument order matches the per-tick execution order documented in CLAUDE.md.
+function SetState(action, ticker, drawer, responder)
+    Action    = action
     Ticker    = ticker
     Drawer    = drawer
-    Action    = action
+    Responder = responder
 end
 
 function DoQuit()
@@ -180,13 +182,9 @@ activeGamepad = nil
 -- Analog stick dead zone
 local AXIS_THRESHOLD = 0.5
 
--- Check if a key is currently held (keyboard or gamepad).
--- During playback, returns the recorded input instead of querying hardware.
-function System_IsKey(key)
-    if replayMode == REPLAY_PLAYING then
-        return Replay_IsKey(key)
-    end
-
+-- Raw hardware poll for a key (keyboard + gamepad). Bypasses the replay path —
+-- callers that should obey replay mode must use System_IsKey instead.
+function System_PollKey(key)
     local k = keyMap[key]
     local held = k and love.keyboard.isDown(k) or false
 
@@ -204,6 +202,15 @@ function System_IsKey(key)
     end
 
     return held and 1 or 0
+end
+
+-- Check if a key is currently held. During replay playback, returns the
+-- recorded input instead of polling hardware.
+function System_IsKey(key)
+    if replayMode == REPLAY_PLAYING then
+        return Replay_IsKey(key)
+    end
+    return System_PollKey(key)
 end
 
 -- Replay mode constants (shared with replay.lua and common.lua)
